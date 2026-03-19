@@ -78,7 +78,7 @@ serve(async (req) => {
         });
       }
 
-      const hash = await bcrypt.hash(password);
+      const hash = bcrypt.hashSync(password);
       const { data: account, error } = await supabase.from("accounts").insert({
         name, email: email.toLowerCase(), password: hash,
         role: "AGENCY", status: status || "PENDING", created_by_id: auth.sub,
