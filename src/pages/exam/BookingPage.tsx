@@ -125,7 +125,7 @@ export default function BookingPage() {
       setLoadingDates(true); setError("");
       try {
         const params = new URLSearchParams({
-          per_page: "1000", category_id: String(categoryId || DEFAULT_CATEGORY_ID),
+          per_page: "1000", category_id: String(categoryId),
           start_at_date_from: normalizeDateValue(new Date().toISOString()),
           available_seats: "greater_than::0", status: "scheduled", locale: "en",
         });
