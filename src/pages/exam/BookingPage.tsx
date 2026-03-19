@@ -229,7 +229,7 @@ export default function BookingPage() {
     if (!effectiveLanguageCode) { setError("language_code is required. Select a language before booking."); return; }
     setBooking(true); setError(""); setStatus("");
     try {
-      const data = await api("/api/svp/exam-reservations", {
+      const data = await api("/exam-reservations", {
         method: "POST", body: {
           exam_session_id: Number(sessionId), occupation_id: Number(selectedOccupationId),
           methodology: methodology || "in_person", language_code: effectiveLanguageCode,
