@@ -21,7 +21,7 @@ export default function BookingPage() {
   const [selectedCity, setSelectedCity] = useState("");
   const [availableDate, setAvailableDate] = useState("");
   const [calendarMonth, setCalendarMonth] = useState("");
-  const [categoryId, setCategoryId] = useState(DEFAULT_CATEGORY_ID);
+  const [categoryId, setCategoryId] = useState("");
   const [methodology, setMethodology] = useState("in_person");
   const [selectedCenterId, setSelectedCenterId] = useState("");
   const [siteId, setSiteId] = useState("");
