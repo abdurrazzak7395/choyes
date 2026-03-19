@@ -1,6 +1,6 @@
 import { Link, useSearchParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
-import { api } from "@/lib/api";
+import { api, getSession, getBackendUrl } from "@/lib/api";
 import {
   pickArray, normalizeOccupation, normalizeDateValue,
   normalizeAvailableDateEntries, getSessionId, getSessionSiteId, getSessionSiteCity,
@@ -10,7 +10,7 @@ import {
 } from "@/lib/booking-utils";
 
 const DEFAULT_CATEGORY_ID = "159";
-const DEFAULT_BACKEND_URL = "https://aci-api-production.up.railway.app";
+
 
 export default function BookingPage() {
   const [searchParams] = useSearchParams();
@@ -82,7 +82,7 @@ export default function BookingPage() {
     (async () => {
       setLoadingOccupations(true); setError("");
       try {
-        const data = await api("/api/svp/occupations?locale=en&per_page=200&page=1");
+        const data = await api("/occupations?locale=en&per_page=200&page=1");
         setOccupations(pickArray(data).map(normalizeOccupation));
       } catch (err: any) { setError(err?.message || "Failed to load occupations"); }
       finally { setLoadingOccupations(false); }
@@ -129,7 +129,7 @@ export default function BookingPage() {
           start_at_date_from: normalizeDateValue(new Date().toISOString()),
           available_seats: "greater_than::0", status: "scheduled", locale: "en",
         });
-        const data = await api(`/api/svp/available-dates?${params.toString()}`);
+        const data = await api(`/available-dates?${params.toString()}`);
         if (!active) return;
         const entries = normalizeAvailableDateEntries(pickArray(data));
         const cities = buildCityOptions(entries);
@@ -155,7 +155,7 @@ export default function BookingPage() {
       setLoadingBalance(true);
       try {
         const params = new URLSearchParams({ methodology_type: methodology || "in_person", occupation_id: String(selectedOccupationId), locale: "en" });
-        const data = await api(`/api/svp/user-balance?${params.toString()}`);
+        const data = await api(`/user-balance?${params.toString()}`);
         if (!active) return; setBalanceInfo(data);
       } catch { if (!active) return; setBalanceInfo(null); }
       finally { if (active) setLoadingBalance(false); }
@@ -170,7 +170,7 @@ export default function BookingPage() {
       setLoadingSessions(true); setError("");
       try {
         const params = new URLSearchParams({ category_id: String(categoryId), city: String(selectedCity), exam_date: availableDate, locale: "en" });
-        const data = await api(`/api/svp/exam-sessions?${params.toString()}`);
+        const data = await api(`/exam-sessions?${params.toString()}`);
         if (!active) return; setSessions(pickArray(data));
       } catch (err: any) { if (!active) return; setSessions([]); setError(err?.message || "Failed to load test sessions"); }
       finally { if (active) setLoadingSessions(false); }
@@ -212,7 +212,7 @@ export default function BookingPage() {
     if (!sessionIds.length) { setError("No valid exam sessions found for hold creation"); return; }
     setCreatingHold(true); setError(""); setStatus("");
     try {
-      const data = await api("/api/svp/temporary-seats", { method: "POST", body: { exam_session_id: sessionIds, methodology: methodology || "in_person" } });
+      const data = await api("/temporary-seats", { method: "POST", body: { exam_session_id: sessionIds, methodology: methodology || "in_person" } });
       const nextHoldId = extractId(data, ["id", "hold_id", "temporary_seat_id"]);
       setHoldId(String(nextHoldId || ""));
       setStatus(nextHoldId ? `Hold created: #${nextHoldId}` : "Hold created");
@@ -222,14 +222,14 @@ export default function BookingPage() {
 
   async function bookReservation() {
     if (!sessionId) { setError("Select test center / session first"); return; }
-    try { await api(`/api/svp/exam-session/${encodeURIComponent(sessionId)}?locale=en`); }
+    try { await api(`/exam-session/${encodeURIComponent(sessionId)}?locale=en`); }
     catch (err: any) { setError(err?.message || "Selected exam session is no longer available"); return; }
     const sessionCodes = getPrometricCodes(selectedSession);
     const effectiveLanguageCode = languageCode || selectedOccupation?.languageCodes?.[0]?.code || sessionCodes?.[0]?.code || sessionCodes?.[0]?.language_code || "";
     if (!effectiveLanguageCode) { setError("language_code is required. Select a language before booking."); return; }
     setBooking(true); setError(""); setStatus("");
     try {
-      const data = await api("/api/svp/exam-reservations", {
+      const data = await api("/exam-reservations", {
         method: "POST", body: {
           exam_session_id: Number(sessionId), occupation_id: Number(selectedOccupationId),
           methodology: methodology || "in_person", language_code: effectiveLanguageCode,
@@ -240,7 +240,7 @@ export default function BookingPage() {
       const nextReservationId = extractId(data, ["id", "reservation_id", "exam_reservation_id"]);
       setReservationId(String(nextReservationId || ""));
       if (nextReservationId && bookingMode.type === "reservation_credit") {
-        await api("/api/svp/reservation-credits/use", {
+        await api("/reservation-credits/use", {
           method: "POST", body: { methodology_type: methodology || "in_person", reservation_id: Number(nextReservationId), occupation_id: Number(selectedOccupationId) },
         });
       }
