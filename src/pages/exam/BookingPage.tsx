@@ -240,7 +240,7 @@ export default function BookingPage() {
       const nextReservationId = extractId(data, ["id", "reservation_id", "exam_reservation_id"]);
       setReservationId(String(nextReservationId || ""));
       if (nextReservationId && bookingMode.type === "reservation_credit") {
-        await api("/api/svp/reservation-credits/use", {
+        await api("/reservation-credits/use", {
           method: "POST", body: { methodology_type: methodology || "in_person", reservation_id: Number(nextReservationId), occupation_id: Number(selectedOccupationId) },
         });
       }
