@@ -58,6 +58,17 @@ function isAllowedOrigin(origin) {
     }
   }
 
+  // Allow Lovable preview/published domains automatically
+  try {
+    const { hostname, protocol } = new URL(origin);
+    if (protocol === 'https:' &&
+        (hostname.endsWith('.lovable.app') || hostname.endsWith('.lovableproject.com'))) {
+      return true;
+    }
+  } catch {
+    // ignore
+  }
+
   return false;
 }
 
