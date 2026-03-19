@@ -198,7 +198,7 @@ serve(async (req) => {
         });
       }
 
-      const hash = await bcrypt.hash(adminPassword);
+      const hash = bcrypt.hashSync(adminPassword);
       const { data: admin, error } = await supabase
         .from("accounts")
         .insert({
