@@ -212,7 +212,7 @@ export default function BookingPage() {
     if (!sessionIds.length) { setError("No valid exam sessions found for hold creation"); return; }
     setCreatingHold(true); setError(""); setStatus("");
     try {
-      const data = await api("/api/svp/temporary-seats", { method: "POST", body: { exam_session_id: sessionIds, methodology: methodology || "in_person" } });
+      const data = await api("/temporary-seats", { method: "POST", body: { exam_session_id: sessionIds, methodology: methodology || "in_person" } });
       const nextHoldId = extractId(data, ["id", "hold_id", "temporary_seat_id"]);
       setHoldId(String(nextHoldId || ""));
       setStatus(nextHoldId ? `Hold created: #${nextHoldId}` : "Hold created");
