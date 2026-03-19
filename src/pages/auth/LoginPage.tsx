@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiAuth } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function LoginPage() {
   const [login, setLogin] = useState("");
@@ -11,6 +12,7 @@ export default function LoginPage() {
   const [svpToken, setSvpToken] = useState("");
   const [tokenMsg, setTokenMsg] = useState("");
   const navigate = useNavigate();
+  const { login: authLogin } = useAuth();
 
   useEffect(() => {
     const portalLogin = sessionStorage.getItem("portal_login") || "";
@@ -39,6 +41,7 @@ export default function LoginPage() {
     setTokenMsg("Verifying bearer token...");
     try {
       const res = await apiAuth("/token-login", { login: tokenLogin, token: svpToken });
+      authLogin(res.accessToken, res.user || res);
       setTokenMsg("Login successful. Redirecting...");
       navigate("/dashboard");
     } catch (err: any) {
