@@ -9,7 +9,7 @@ import {
   formatDateLabel, detectBookingMode,
 } from "@/lib/booking-utils";
 
-const DEFAULT_CATEGORY_ID = "159";
+
 
 
 export default function BookingPage() {
@@ -21,7 +21,7 @@ export default function BookingPage() {
   const [selectedCity, setSelectedCity] = useState("");
   const [availableDate, setAvailableDate] = useState("");
   const [calendarMonth, setCalendarMonth] = useState("");
-  const [categoryId, setCategoryId] = useState(DEFAULT_CATEGORY_ID);
+  const [categoryId, setCategoryId] = useState("");
   const [methodology, setMethodology] = useState("in_person");
   const [selectedCenterId, setSelectedCenterId] = useState("");
   const [siteId, setSiteId] = useState("");
@@ -105,7 +105,7 @@ export default function BookingPage() {
 
   useEffect(() => {
     if (!selectedOccupation) return;
-    setCategoryId(String(selectedOccupation.categoryId || DEFAULT_CATEGORY_ID));
+    setCategoryId(String(selectedOccupation.categoryId || ""));
     setLanguageCode((prev) => prev || String(selectedOccupation.languageCodes[0]?.code || ""));
     setMethodology(String(selectedOccupation.methodology || "in_person"));
     setSelectedCity(""); setAvailableDate(""); setAvailableDateEntries([]); setSessions([]);
@@ -125,7 +125,7 @@ export default function BookingPage() {
       setLoadingDates(true); setError("");
       try {
         const params = new URLSearchParams({
-          per_page: "1000", category_id: String(categoryId || DEFAULT_CATEGORY_ID),
+          per_page: "1000", category_id: String(categoryId),
           start_at_date_from: normalizeDateValue(new Date().toISOString()),
           available_seats: "greater_than::0", status: "scheduled", locale: "en",
         });
@@ -306,7 +306,7 @@ export default function BookingPage() {
         <div className="form-grid">
           <div className="field-block">
             <span>Category ID</span>
-            <div className="readonly-value">{categoryId || DEFAULT_CATEGORY_ID}</div>
+            <div className="readonly-value">{categoryId || "—"}</div>
           </div>
           <div className="field-block">
             <span>Methodology</span>
