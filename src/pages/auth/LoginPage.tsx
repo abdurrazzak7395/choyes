@@ -12,6 +12,7 @@ export default function LoginPage() {
   const [svpToken, setSvpToken] = useState("");
   const [tokenMsg, setTokenMsg] = useState("");
   const navigate = useNavigate();
+  const { login: authLogin } = useAuth();
 
   useEffect(() => {
     const portalLogin = sessionStorage.getItem("portal_login") || "";
