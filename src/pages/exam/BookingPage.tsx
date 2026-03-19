@@ -155,7 +155,7 @@ export default function BookingPage() {
       setLoadingBalance(true);
       try {
         const params = new URLSearchParams({ methodology_type: methodology || "in_person", occupation_id: String(selectedOccupationId), locale: "en" });
-        const data = await api(`/api/svp/user-balance?${params.toString()}`);
+        const data = await api(`/user-balance?${params.toString()}`);
         if (!active) return; setBalanceInfo(data);
       } catch { if (!active) return; setBalanceInfo(null); }
       finally { if (active) setLoadingBalance(false); }
