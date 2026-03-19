@@ -1,8 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { api } from "@/lib/api";
-
-const DEFAULT_BACKEND_URL = "https://aci-api-production.up.railway.app";
+import { api, getSession, getBackendUrl } from "@/lib/api";
 
 function pickArray(payload: any): any[] {
   if (Array.isArray(payload)) return payload;
@@ -53,7 +51,7 @@ export default function ReservationsPage() {
   async function loadReservations() {
     setLoading(true); setError("");
     try {
-      const data = await api("/api/svp/exam-reservations?locale=en");
+      const data = await api("/exam-reservations?locale=en");
       const reservations = pickArray(data);
       setItems(reservations);
       if (!reservations.length) setError("No booked reservations found from the API for this account.");
@@ -69,7 +67,7 @@ export default function ReservationsPage() {
     if (!reservationId || !occupationId) { setError("Missing reservation ID or occupation ID"); return; }
     setLoadingId(String(reservationId)); setError("");
     try {
-      await api("/api/svp/reservation-credits/use", {
+      await api("/reservation-credits/use", {
         method: "POST",
         body: { methodology_type: getMethodology(item), reservation_id: Number(reservationId), occupation_id: Number(occupationId) },
       });
@@ -89,10 +87,10 @@ export default function ReservationsPage() {
     if (!reservationId) { setError("Missing reservation ID for ticket download"); return; }
     setDownloadingId(String(reservationId)); setError("");
     try {
-      const accessToken = localStorage.getItem("accessToken") || "";
-      const base = DEFAULT_BACKEND_URL;
-      const response = await fetch(`${base}/api/svp/tickets/${encodeURIComponent(reservationId)}/show-pdf?locale=en`, {
-        method: "GET", headers: { Accept: "*/*", ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}) }, credentials: "include",
+      const { accessToken } = getSession();
+      const base = getBackendUrl();
+      const response = await fetch(`${base}/svp-proxy/tickets/${encodeURIComponent(reservationId)}/show-pdf?locale=en`, {
+        method: "GET", headers: { Accept: "*/*", ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}) },
       });
       if (!response.ok) { throw new Error(await response.text() || "Failed to download ticket PDF"); }
       const contentType = response.headers.get("content-type") || "";
