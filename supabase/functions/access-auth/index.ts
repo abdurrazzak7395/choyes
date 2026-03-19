@@ -87,7 +87,7 @@ serve(async (req) => {
         });
       }
 
-      const matches = await bcrypt.compare(password, account.password);
+      const matches = bcrypt.compareSync(password, account.password);
       if (!matches) {
         return new Response(JSON.stringify({ message: "Invalid credentials" }), {
           status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
