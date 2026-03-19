@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { apiAuth } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function OtpPage() {
   const navigate = useNavigate();
