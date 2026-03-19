@@ -129,7 +129,7 @@ export default function BookingPage() {
           start_at_date_from: normalizeDateValue(new Date().toISOString()),
           available_seats: "greater_than::0", status: "scheduled", locale: "en",
         });
-        const data = await api(`/api/svp/available-dates?${params.toString()}`);
+        const data = await api(`/available-dates?${params.toString()}`);
         if (!active) return;
         const entries = normalizeAvailableDateEntries(pickArray(data));
         const cities = buildCityOptions(entries);
