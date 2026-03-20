@@ -397,7 +397,7 @@ export default function BookingPage() {
             <span>Test Center *</span>
             <select value={selectedCenterId} onChange={(e) => setSelectedCenterId(e.target.value)} disabled={!centerOptions.length}>
               <option value="">{loadingSessions ? "Loading centers..." : "Select test center"}</option>
-              {centerOptions.map((item) => <option key={item.siteId} value={item.siteId}>{item.name}</option>)}
+              {centerOptions.map((item) => <option key={item.siteId} value={item.siteId}>{item.name} (Site #{item.siteId})</option>)}
             </select>
           </div>
           <div className="field-block">
