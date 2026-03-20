@@ -106,7 +106,7 @@ async function decryptString(b64: string): Promise<string> {
 async function verifyJwt(token: string): Promise<Record<string, unknown>> {
   const secret = Deno.env.get("JWT_ACCESS_SECRET")!;
   const parts = token.split(".");
-  if (parts.length !== 3) throw new Error("Invalid token");
+  if (parts.length !== 3) throw { statusCode: 401, message: "Invalid token" };
 
   const keyData = new TextEncoder().encode(secret);
   const cryptoKey = await crypto.subtle.importKey("raw", keyData, { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
@@ -117,13 +117,16 @@ async function verifyJwt(token: string): Promise<Record<string, unknown>> {
   const sig = Uint8Array.from(atob(padded), (c) => c.charCodeAt(0));
 
   const valid = await crypto.subtle.verify("HMAC", cryptoKey, sig, new TextEncoder().encode(input));
-  if (!valid) throw new Error("Invalid signature");
+  if (!valid) throw { statusCode: 401, message: "Invalid signature" };
 
   const claimsB64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
   const claimsPadded = claimsB64 + "=".repeat((4 - (claimsB64.length % 4)) % 4);
   const claims = JSON.parse(atob(claimsPadded));
 
-  if (claims.exp && claims.exp < Math.floor(Date.now() / 1000)) throw new Error("Token expired");
+  if (claims.exp && claims.exp < Math.floor(Date.now() / 1000)) {
+    throw { statusCode: 401, message: "Token expired" };
+  }
+
   return claims;
 }
 

@@ -75,27 +75,38 @@ export async function api<T = any>(
     body: body ? JSON.stringify(body) : undefined,
   });
 
+  const shouldRefresh = (status: number, payload: any) => {
+    const message = String(payload?.message || payload?.error || "").toLowerCase();
+    return status === 401 || (status === 500 && message.includes("token expired"));
+  };
+
   let { res, data } = await doFetch(`${BASE}/svp-proxy${path}`, makeOpts(access));
 
-  // Auto-refresh on 401
-  if (res.status === 401 && session.refreshToken && session.sessionId) {
+  if (shouldRefresh(res.status, data) && session.refreshToken && session.sessionId) {
     try {
       const refreshRes = await doFetch(`${BASE}/svp-auth/refresh`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId: session.sessionId, refreshToken: session.refreshToken }),
       });
+
       if (refreshRes.res.ok && refreshRes.data?.accessToken) {
         access = refreshRes.data.accessToken;
-        localStorage.setItem("accessToken", access!);
+        localStorage.setItem("accessToken", access);
         ({ res, data } = await doFetch(`${BASE}/svp-proxy${path}`, makeOpts(access)));
+      } else if (refreshRes.res.status === 401) {
+        clearSession();
       }
     } catch {
-      // refresh failed, proceed with error
+      // refresh failed, proceed with original error
     }
   }
 
-  if (!res.ok) throw Object.assign(new Error("Request failed"), { status: res.status, data });
+  if (!res.ok) {
+    const message = data?.message || data?.error || "Request failed";
+    throw Object.assign(new Error(message), { status: res.status, data });
+  }
+
   return data as T;
 }
 

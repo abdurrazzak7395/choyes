@@ -46,7 +46,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { accessToken } = getSession();
     if (accessToken) {
       const payload = decodeJwtPayload(accessToken);
-      setUser(payload ? { login: payload.login || "User" } : { login: "User" });
+      if (payload?.exp && Number(payload.exp) * 1000 <= Date.now()) {
+        clearSession();
+      } else {
+        setUser(payload ? { login: payload.login || "User" } : { login: "User" });
+      }
     }
     setLoading(false);
   }, []);
