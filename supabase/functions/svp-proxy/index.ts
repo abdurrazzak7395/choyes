@@ -227,6 +227,44 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ── Exam sessions (enriched with available_seats) ────────
+    if (req.method === "GET" && path === "/exam-sessions") {
+      const listData: any = await svpFetch(
+        buildPath("/api/v1/individual_labor_space/exam_sessions", query),
+        { method: "GET", token: svpToken }
+      );
+
+      // Extract sessions array
+      const sessions: any[] = listData?.exam_sessions || listData?.data?.exam_sessions || (Array.isArray(listData) ? listData : []);
+
+      // Fetch individual session details in parallel to get available_seats
+      if (sessions.length > 0 && sessions.length <= 50) {
+        const enriched = await Promise.allSettled(
+          sessions.map(async (s: any) => {
+            const sid = s?.id || s?.session_id;
+            if (!sid) return s;
+            try {
+              const detail: any = await svpFetch(
+                buildPath(`/api/v1/individual_labor_space/exam_sessions/${sid}`, "locale=en"),
+                { method: "GET", token: svpToken }
+              );
+              const sessionDetail = detail?.exam_session || detail?.data?.exam_session || detail;
+              return {
+                ...s,
+                available_seats: sessionDetail?.available_seats ?? s?.available_seats,
+                total_seats: sessionDetail?.total_seats ?? s?.total_seats,
+              };
+            } catch {
+              return s;
+            }
+          })
+        );
+        const enrichedSessions = enriched.map((r) => r.status === "fulfilled" ? r.value : null).filter(Boolean);
+        return json({ ...listData, exam_sessions: enrichedSessions });
+      }
+
+      return json(listData);
+    }
 
     // ── User balance (auto-detect SVP user ID) ───────────────
     if (req.method === "GET" && path === "/user-balance") {
