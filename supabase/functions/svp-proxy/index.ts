@@ -224,8 +224,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── Test centers (with fallbacks) ────────────────────────
-    if (req.method === "GET" && (path === "/test-centers" || path.startsWith("/test-centers/"))) {
       const siteIdMatch = path.match(/^\/test-centers\/([^/]+)$/);
       if (siteIdMatch) {
         // Single test center by site_id
