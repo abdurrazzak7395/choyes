@@ -224,6 +224,42 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ── Test centers (with fallbacks) ────────────────────────
+    if (req.method === "GET" && (path === "/test-centers" || path.startsWith("/test-centers/"))) {
+      const siteIdMatch = path.match(/^\/test-centers\/([^/]+)$/);
+      if (siteIdMatch) {
+        // Single test center by site_id
+        const tcPaths = [
+          `/api/v1/individual_labor_space/test_centers/${siteIdMatch[1]}`,
+          `/api/v1/test_centers/${siteIdMatch[1]}`,
+          `/api/v1/individual_labor_space/sites/${siteIdMatch[1]}`,
+        ];
+        for (let i = 0; i < tcPaths.length; i++) {
+          try {
+            const data = await svpFetch(buildPath(tcPaths[i], query), { method: "GET", token: svpToken });
+            return json(data);
+          } catch (err: any) {
+            if (err?.statusCode !== 404 || i === tcPaths.length - 1) throw err;
+          }
+        }
+      } else {
+        // All test centers
+        const tcPaths = [
+          "/api/v1/individual_labor_space/test_centers",
+          "/api/v1/test_centers",
+          "/api/v1/individual_labor_space/sites",
+        ];
+        for (let i = 0; i < tcPaths.length; i++) {
+          try {
+            const data = await svpFetch(buildPath(tcPaths[i], query), { method: "GET", token: svpToken });
+            return json(data);
+          } catch (err: any) {
+            if (err?.statusCode !== 404 || i === tcPaths.length - 1) throw err;
+          }
+        }
+      }
+    }
+
     // ── User balance (auto-detect SVP user ID) ───────────────
     if (req.method === "GET" && path === "/user-balance") {
       const supabase = getSupabase();
