@@ -95,6 +95,20 @@ export default function BookingPage() {
       } catch (err: any) { setError(err?.message || "Failed to load occupations"); }
       finally { setLoadingOccupations(false); }
     })();
+    // Fetch test centers to map site_id -> real name
+    (async () => {
+      try {
+        const data = await api("/test-centers?per_page=500&locale=en");
+        const arr = pickArray(data);
+        const map = new Map<string, string>();
+        arr.forEach((tc: any) => {
+          const sid = String(tc?.site_id || tc?.id || "");
+          const name = tc?.name || tc?.test_center_name || "";
+          if (sid && name) map.set(sid, name);
+        });
+        setTestCenterMap(map);
+      } catch { /* test centers name enrichment is optional */ }
+    })();
   }, []);
 
   useEffect(() => {
