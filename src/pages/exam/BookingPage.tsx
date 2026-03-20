@@ -17,6 +17,7 @@ export default function BookingPage() {
   const [occupations, setOccupations] = useState<any[]>([]);
   const [availableDateEntries, setAvailableDateEntries] = useState<{ city: string; date: string }[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
+  const [testCenterMap, setTestCenterMap] = useState<Map<string, string>>(new Map());
   const [selectedOccupationId, setSelectedOccupationId] = useState("");
   const [selectedCity, setSelectedCity] = useState("");
   const [availableDate, setAvailableDate] = useState("");
@@ -51,7 +52,14 @@ export default function BookingPage() {
     () => selectedCity ? sessions.filter((item) => String(getSessionSiteCity(item)).trim().toLowerCase() === String(selectedCity).trim().toLowerCase()) : sessions,
     [sessions, selectedCity]
   );
-  const centerOptions = useMemo(() => buildCenterOptions(cityFilteredSessions), [cityFilteredSessions]);
+  const centerOptions = useMemo(() => {
+    const options = buildCenterOptions(cityFilteredSessions);
+    // Enrich with real test center names from the map
+    return options.map((opt) => ({
+      ...opt,
+      name: testCenterMap.get(opt.siteId) || opt.name,
+    }));
+  }, [cityFilteredSessions, testCenterMap]);
   const filteredSessions = useMemo(
     () => selectedCenterId ? cityFilteredSessions.filter((item) => getCenterKey(item) === String(selectedCenterId)) : cityFilteredSessions,
     [cityFilteredSessions, selectedCenterId]
@@ -86,6 +94,20 @@ export default function BookingPage() {
         setOccupations(pickArray(data).map(normalizeOccupation));
       } catch (err: any) { setError(err?.message || "Failed to load occupations"); }
       finally { setLoadingOccupations(false); }
+    })();
+    // Fetch test centers to map site_id -> real name
+    (async () => {
+      try {
+        const data = await api("/test-centers?per_page=500&locale=en");
+        const arr = pickArray(data);
+        const map = new Map<string, string>();
+        arr.forEach((tc: any) => {
+          const sid = String(tc?.site_id || tc?.id || "");
+          const name = tc?.name || tc?.test_center_name || "";
+          if (sid && name) map.set(sid, name);
+        });
+        setTestCenterMap(map);
+      } catch { /* test centers name enrichment is optional */ }
     })();
   }, []);
 
@@ -375,18 +397,22 @@ export default function BookingPage() {
             <span>Test Center *</span>
             <select value={selectedCenterId} onChange={(e) => setSelectedCenterId(e.target.value)} disabled={!centerOptions.length}>
               <option value="">{loadingSessions ? "Loading centers..." : "Select test center"}</option>
-              {centerOptions.map((item) => <option key={item.siteId} value={item.siteId}>{item.name}</option>)}
+              {centerOptions.map((item) => <option key={item.siteId} value={item.siteId}>{item.name} (Site #{item.siteId})</option>)}
             </select>
           </div>
           <div className="field-block">
             <span>Exam Session *</span>
             <select value={sessionId} onChange={(e) => setSessionId(e.target.value)} disabled={!filteredSessions.length}>
               <option value="">{loadingSessions ? "Loading sessions..." : "Select session"}</option>
-              {filteredSessions.map((item) => (
-                <option key={getSessionId(item)} value={getSessionId(item)}>
-                  {getSessionCenterName(item)} | Session #{getSessionId(item)}
-                </option>
-              ))}
+              {filteredSessions.map((item) => {
+                const sid = getSessionSiteId(item);
+                const realName = testCenterMap.get(String(sid)) || getSessionCenterName(item);
+                return (
+                  <option key={getSessionId(item)} value={getSessionId(item)}>
+                    {realName} (Site #{sid}) | Session #{getSessionId(item)}
+                  </option>
+                );
+              })}
             </select>
           </div>
           <div className="field-block">
