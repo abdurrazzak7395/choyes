@@ -229,42 +229,31 @@ Deno.serve(async (req) => {
 
     // ── Exam sessions (enriched with available_seats) ────────
     if (req.method === "GET" && path === "/exam-sessions") {
-      const listData: any = await svpFetch(
-        buildPath("/api/v1/individual_labor_space/exam_sessions", query),
-        { method: "GET", token: svpToken }
-      );
-
-      const sessions: any[] = listData?.exam_sessions || listData?.data?.exam_sessions || (Array.isArray(listData) ? listData : []);
-
-      // Try to get available_seats from the legislator exam_sessions endpoint
-      if (sessions.length > 0) {
+      // Try multiple endpoint paths, some may include available_seats
+      const endpointPaths = [
+        "/api/v1/legislator_space/exam_sessions",
+        "/api/v1/individual_labor_space/exam_sessions",
+      ];
+      
+      let listData: any = null;
+      let sessions: any[] = [];
+      
+      for (const ep of endpointPaths) {
         try {
-          // Fetch from legislator space which includes available_seats
-          const legData: any = await svpFetch(
-            buildPath("/api/v1/legislator_space/exam_sessions", query),
-            { method: "GET", token: svpToken }
-          );
-          const legSessions: any[] = legData?.exam_sessions || legData?.data?.exam_sessions || (Array.isArray(legData) ? legData : []);
-          
-          // Build a lookup map by session ID
-          const seatsMap = new Map<number, number>();
-          legSessions.forEach((s: any) => {
-            if (s?.id && s?.available_seats !== undefined) {
-              seatsMap.set(s.id, s.available_seats);
-            }
-          });
-
-          if (seatsMap.size > 0) {
-            const enriched = sessions.map((s: any) => ({
-              ...s,
-              available_seats: seatsMap.get(s?.id) ?? s?.available_seats,
-            }));
-            return json({ ...listData, exam_sessions: enriched });
+          listData = await svpFetch(buildPath(ep, query), { method: "GET", token: svpToken });
+          sessions = listData?.exam_sessions || listData?.data?.exam_sessions || (Array.isArray(listData) ? listData : []);
+          // If we got available_seats from this endpoint, use it
+          if (sessions.length > 0 && sessions[0]?.available_seats !== undefined) break;
+        } catch (err: any) {
+          // If last path fails, throw
+          if (ep === endpointPaths[endpointPaths.length - 1]) {
+            if (!listData) throw err;
           }
-        } catch {
-          // legislator endpoint not available, fall through
         }
       }
+
+      // Log what we got for debugging
+      console.log(`exam-sessions: ${sessions.length} sessions, has available_seats: ${sessions[0]?.available_seats !== undefined}`);
 
       return json(listData);
     }
