@@ -187,23 +187,24 @@ export default function BookingPage() {
     return () => { active = false; };
   }, [selectedCity, availableDate, categoryId]);
 
-  // Fetch real test center names per site_id
+  // Fetch real test center names from database
   useEffect(() => {
     if (!sessions.length) return;
-    const siteIds = Array.from(new Set(sessions.map((s: any) => String(s?.test_center?.site_id || "")).filter(Boolean)));
-    const missing = siteIds.filter((sid) => !testCenterMap.has(sid));
+    const siteIds = Array.from(new Set(
+      sessions.map((s: any) => Number(s?.test_center?.site_id)).filter((n) => Number.isFinite(n) && n > 0)
+    ));
+    const missing = siteIds.filter((sid) => !testCenterMap.has(String(sid)));
     if (!missing.length) return;
     let active = true;
     (async () => {
+      const { data } = await supabase
+        .from("test_centers")
+        .select("site_id, name")
+        .in("site_id", missing);
+      if (!active || !data?.length) return;
       const newMap = new Map(testCenterMap);
-      await Promise.all(missing.map(async (sid) => {
-        try {
-          const data = await api(`/test-centers/${sid}?locale=en`);
-          const name = data?.name || data?.test_center_name || data?.data?.name || "";
-          if (name && active) newMap.set(sid, name);
-        } catch { /* optional enrichment */ }
-      }));
-      if (active) setTestCenterMap(new Map(newMap));
+      data.forEach((row: any) => newMap.set(String(row.site_id), row.name));
+      setTestCenterMap(new Map(newMap));
     })();
     return () => { active = false; };
   }, [sessions]);
