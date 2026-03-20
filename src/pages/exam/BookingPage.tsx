@@ -416,9 +416,10 @@ export default function BookingPage() {
               {filteredSessions.map((item) => {
                 const sid = getSessionSiteId(item);
                 const realName = testCenterMap.get(String(sid)) || getSessionCenterName(item);
+                const seats = item?.available_seats ?? item?.seats_available ?? item?.remaining_seats ?? null;
                 return (
                   <option key={getSessionId(item)} value={getSessionId(item)}>
-                    {realName} (Site #{sid}) | Session #{getSessionId(item)}
+                    {realName} (Site #{sid}) | Session #{getSessionId(item)}{seats !== null && seats !== undefined ? ` | Seats: ${seats}` : ""}
                   </option>
                 );
               })}
