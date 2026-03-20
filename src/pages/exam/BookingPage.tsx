@@ -17,6 +17,7 @@ export default function BookingPage() {
   const [occupations, setOccupations] = useState<any[]>([]);
   const [availableDateEntries, setAvailableDateEntries] = useState<{ city: string; date: string }[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
+  const [testCenterMap, setTestCenterMap] = useState<Map<string, string>>(new Map());
   const [selectedOccupationId, setSelectedOccupationId] = useState("");
   const [selectedCity, setSelectedCity] = useState("");
   const [availableDate, setAvailableDate] = useState("");
