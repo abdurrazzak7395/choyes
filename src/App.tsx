@@ -13,6 +13,7 @@ import DashboardPage from "@/pages/DashboardPage";
 import BookingPage from "@/pages/exam/BookingPage";
 import ReservationsPage from "@/pages/exam/ReservationsPage";
 import AccessLoginPage from "@/pages/access/AccessLoginPage";
+import ForgotPasswordPage from "@/pages/access/ForgotPasswordPage";
 import AccessDashboardPage from "@/pages/access/AccessDashboardPage";
 import AccessAccountsPage from "@/pages/access/AccessAccountsPage";
 import AccessUsersPage from "@/pages/access/AccessUsersPage";
