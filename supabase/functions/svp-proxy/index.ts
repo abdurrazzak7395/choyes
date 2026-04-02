@@ -80,17 +80,19 @@ async function svpFetchRaw(
 }
 
 // ── Crypto ──────────────────────────────────────────────────────────
-function getEncKey(): Uint8Array {
+async function getEncKey(): Promise<Uint8Array> {
   const raw = Deno.env.get("SESSION_ENC_KEY_BASE64") || "";
   if (raw) {
     try {
       const decoded = Uint8Array.from(atob(raw), (c) => c.charCodeAt(0));
       if (decoded.length === 32) return decoded;
     } catch { /* fall through */ }
-    return new Uint8Array(crypto.subtle.digestSync("SHA-256", new TextEncoder().encode(raw)));
+    const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(raw));
+    return new Uint8Array(hash);
   }
   const fallback = Deno.env.get("JWT_REFRESH_SECRET") || "dev";
-  return new Uint8Array(crypto.subtle.digestSync("SHA-256", new TextEncoder().encode(fallback)));
+  const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(fallback));
+  return new Uint8Array(hash);
 }
 
 async function decryptString(b64: string): Promise<string> {
