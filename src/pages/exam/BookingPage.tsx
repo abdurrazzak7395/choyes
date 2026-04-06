@@ -38,6 +38,7 @@ export default function BookingPage() {
   const [creatingHold, setCreatingHold] = useState(false);
   const [booking, setBooking] = useState(false);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [showRescheduleConfirm, setShowRescheduleConfirm] = useState(false);
   const [loadingBalance, setLoadingBalance] = useState(false);
   const [balanceInfo, setBalanceInfo] = useState<any>(null);
   const [status, setStatus] = useState("");
