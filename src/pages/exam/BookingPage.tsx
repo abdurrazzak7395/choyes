@@ -478,10 +478,65 @@ export default function BookingPage() {
           <button className="ghost-btn" type="button" onClick={createHold} disabled={creatingHold || !sessionId}>
             {creatingHold ? "Creating hold..." : "Create Hold"}
           </button>
-          <button className="primary-btn" type="button" onClick={bookReservation} disabled={booking || !sessionId}>
-            {booking ? "Confirming..." : "Confirm Booking"}
-          </button>
+          {searchParams.get("reschedule") === "1" ? (
+            <button className="primary-btn" type="button" onClick={() => setShowRescheduleConfirm(true)} disabled={booking || !sessionId}>
+              {booking ? "Confirming..." : "Confirm Reschedule"}
+            </button>
+          ) : (
+            <button className="primary-btn" type="button" onClick={bookReservation} disabled={booking || !sessionId}>
+              {booking ? "Confirming..." : "Confirm Booking"}
+            </button>
+          )}
         </div>
+
+        {/* Reschedule Confirmation Dialog */}
+        {showRescheduleConfirm && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}>
+            <div style={{ background: "#fff", borderRadius: "12px", padding: "28px 32px", maxWidth: "520px", width: "90%", boxShadow: "0 10px 40px rgba(0,0,0,0.2)" }}>
+              <h2 style={{ margin: "0 0 18px", fontSize: "18px", fontWeight: 700 }}>Confirm Reschedule</h2>
+              <p style={{ margin: "0 0 16px", color: "#666", fontSize: "14px" }}>
+                This will <strong style={{ color: "#dc3545" }}>cancel</strong> your existing reservation and create a new one.
+              </p>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "20px" }}>
+                {/* Old reservation */}
+                <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "8px", padding: "14px" }}>
+                  <div style={{ fontSize: "12px", fontWeight: 600, color: "#dc3545", marginBottom: "8px", textTransform: "uppercase" }}>Old Reservation</div>
+                  <div style={{ fontSize: "13px", lineHeight: "1.6" }}>
+                    <div><span style={{ color: "#888" }}>ID:</span> <strong>#{searchParams.get("reservationId") || "-"}</strong></div>
+                    <div><span style={{ color: "#888" }}>Date:</span> <strong>{searchParams.get("examDate") || "-"}</strong></div>
+                    <div><span style={{ color: "#888" }}>Site:</span> <strong>#{searchParams.get("siteId") || "-"}</strong></div>
+                    <div><span style={{ color: "#888" }}>City:</span> <strong>{searchParams.get("siteCity") || "-"}</strong></div>
+                  </div>
+                </div>
+
+                {/* New reservation */}
+                <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "8px", padding: "14px" }}>
+                  <div style={{ fontSize: "12px", fontWeight: 600, color: "#16a34a", marginBottom: "8px", textTransform: "uppercase" }}>New Reservation</div>
+                  <div style={{ fontSize: "13px", lineHeight: "1.6" }}>
+                    <div><span style={{ color: "#888" }}>Session:</span> <strong>#{sessionId || "-"}</strong></div>
+                    <div><span style={{ color: "#888" }}>Date:</span> <strong>{availableDate || "-"}</strong></div>
+                    <div><span style={{ color: "#888" }}>Site:</span> <strong>#{siteId || "-"}</strong></div>
+                    <div><span style={{ color: "#888" }}>City:</span> <strong>{siteCity || selectedCity || "-"}</strong></div>
+                    <div><span style={{ color: "#888" }}>Center:</span> <strong>{centerOptions.find(c => String(c.siteId) === String(selectedCenterId))?.name || "-"}</strong></div>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+                <button type="button" onClick={() => setShowRescheduleConfirm(false)}
+                  style={{ padding: "10px 20px", borderRadius: "6px", border: "1px solid #ddd", background: "#f5f5f5", cursor: "pointer", fontWeight: 500 }}>
+                  Cancel
+                </button>
+                <button type="button" disabled={booking}
+                  onClick={() => { setShowRescheduleConfirm(false); bookReservation(); }}
+                  style={{ padding: "10px 20px", borderRadius: "6px", border: "none", background: "#2563eb", color: "#fff", cursor: "pointer", fontWeight: 600 }}>
+                  {booking ? "Processing..." : "Yes, Reschedule"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
