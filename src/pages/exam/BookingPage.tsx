@@ -499,7 +499,7 @@ export default function BookingPage() {
             <div style={{ background: "#fff", borderRadius: "12px", padding: "28px 32px", maxWidth: "520px", width: "90%", boxShadow: "0 10px 40px rgba(0,0,0,0.2)" }}>
               <h2 style={{ margin: "0 0 18px", fontSize: "18px", fontWeight: 700 }}>Confirm Reschedule</h2>
               <p style={{ margin: "0 0 16px", color: "#666", fontSize: "14px" }}>
-                This will <strong style={{ color: "#dc3545" }}>cancel</strong> your existing reservation and create a new one.
+                This will <strong style={{ color: "#2563eb" }}>reschedule</strong> your existing reservation to a new session.
               </p>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "20px" }}>
