@@ -261,49 +261,53 @@ export default function BookingPage() {
     if (!effectiveLanguageCode) { setError("language_code is required. Select a language before booking."); return; }
     setBooking(true); setError(""); setStatus("");
     try {
-      // If rescheduling, cancel the old reservation first
       const oldReservationId = searchParams.get("reservationId");
-      if (searchParams.get("reschedule") === "1" && oldReservationId) {
-        setStatus("Cancelling old reservation before rebooking...");
-        try {
-          await api(`/exam-reservations/${encodeURIComponent(oldReservationId)}`, { method: "DELETE" });
-        } catch (cancelErr: any) {
-          console.warn("Failed to cancel old reservation (continuing):", cancelErr?.message);
-          // If it's already cancelled or not found, continue with new booking
-          if (cancelErr?.status !== 404 && cancelErr?.status !== 422) {
-            setError(`Failed to cancel old reservation #${oldReservationId}: ${cancelErr?.message}`);
-            setBooking(false);
-            return;
+      const isReschedule = searchParams.get("reschedule") === "1" && oldReservationId;
+
+      if (isReschedule) {
+        // Use the dedicated reschedule endpoint
+        setStatus("Rescheduling reservation...");
+        const data = await api(`/exam-reservations/${encodeURIComponent(oldReservationId)}/reschedule`, {
+          method: "POST",
+          body: {
+            id: Number(oldReservationId),
+            exam_session_id: Number(sessionId),
+            language_code: effectiveLanguageCode,
+          },
+        });
+        const nextReservationId = extractId(data, ["id", "reservation_id", "exam_reservation_id"]) || oldReservationId;
+        setReservationId(String(nextReservationId || ""));
+        setStatus(`Reservation rescheduled successfully: #${nextReservationId}`);
+        if (nextReservationId) await openTicketPdf(String(nextReservationId));
+      } else {
+        // Normal new booking
+        const data = await api("/exam-reservations", {
+          method: "POST", body: {
+            exam_session_id: Number(sessionId), occupation_id: Number(selectedOccupationId),
+            methodology: methodology || "in_person", language_code: effectiveLanguageCode,
+            site_id: siteId ? Number(siteId) : null, site_city: siteCity || selectedCity || null,
+            hold_id: holdId ? Number(holdId) : null,
+          },
+        });
+        const nextReservationId = extractId(data, ["id", "reservation_id", "exam_reservation_id"]);
+        setReservationId(String(nextReservationId || ""));
+        if (nextReservationId && bookingMode.type === "reservation_credit") {
+          try {
+            await api("/reservation-credits/use", {
+              method: "POST",
+              body: {
+                methodology_type: methodology || "in_person",
+                reservation_id: Number(nextReservationId),
+                occupation_id: Number(selectedOccupationId),
+              },
+            });
+          } catch (creditErr: any) {
+            console.warn("reservation-credits/use failed after booking (continuing):", creditErr?.message);
           }
         }
+        setStatus(nextReservationId ? `Reservation confirmed: #${nextReservationId}` : "Reservation created");
+        if (nextReservationId) await openTicketPdf(String(nextReservationId));
       }
-
-      const data = await api("/exam-reservations", {
-        method: "POST", body: {
-          exam_session_id: Number(sessionId), occupation_id: Number(selectedOccupationId),
-          methodology: methodology || "in_person", language_code: effectiveLanguageCode,
-          site_id: siteId ? Number(siteId) : null, site_city: siteCity || selectedCity || null,
-          hold_id: holdId ? Number(holdId) : null,
-        },
-      });
-      const nextReservationId = extractId(data, ["id", "reservation_id", "exam_reservation_id"]);
-      setReservationId(String(nextReservationId || ""));
-      if (nextReservationId && bookingMode.type === "reservation_credit") {
-        try {
-          await api("/reservation-credits/use", {
-            method: "POST",
-            body: {
-              methodology_type: methodology || "in_person",
-              reservation_id: Number(nextReservationId),
-              occupation_id: Number(selectedOccupationId),
-            },
-          });
-        } catch (creditErr: any) {
-          console.warn("reservation-credits/use failed after booking (continuing):", creditErr?.message);
-        }
-      }
-      setStatus(nextReservationId ? `Reservation confirmed: #${nextReservationId}` : "Reservation created");
-      if (nextReservationId) await openTicketPdf(nextReservationId);
     } catch (err: any) { setError(err?.message || "Failed to book reservation"); }
     finally { setBooking(false); }
   }
@@ -495,7 +499,7 @@ export default function BookingPage() {
             <div style={{ background: "#fff", borderRadius: "12px", padding: "28px 32px", maxWidth: "520px", width: "90%", boxShadow: "0 10px 40px rgba(0,0,0,0.2)" }}>
               <h2 style={{ margin: "0 0 18px", fontSize: "18px", fontWeight: 700 }}>Confirm Reschedule</h2>
               <p style={{ margin: "0 0 16px", color: "#666", fontSize: "14px" }}>
-                This will <strong style={{ color: "#dc3545" }}>cancel</strong> your existing reservation and create a new one.
+                This will <strong style={{ color: "#2563eb" }}>reschedule</strong> your existing reservation to a new session.
               </p>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "20px" }}>
