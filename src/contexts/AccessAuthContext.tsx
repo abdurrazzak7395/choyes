@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import {
   accessAuthApi,
   saveAccessToken,
@@ -7,6 +7,8 @@ import {
   saveAccessUser,
   clearAccessUser,
 } from "@/lib/access-api";
+
+const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 
 export interface AccessUser {
   id: string;
@@ -40,11 +42,59 @@ export function useAccessAuth() {
 export function AccessAuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AccessUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const doLogout = useCallback(() => {
+    clearAccessToken();
+    clearAccessUser();
+    localStorage.removeItem("access_login_time");
+    setUser(null);
+    if (timerRef.current) clearTimeout(timerRef.current);
+  }, []);
+
+  const startSessionTimer = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    const loginTime = Number(localStorage.getItem("access_login_time") || "0");
+    if (!loginTime) return;
+    const elapsed = Date.now() - loginTime;
+    const remaining = SESSION_TIMEOUT_MS - elapsed;
+    if (remaining <= 0) {
+      doLogout();
+      return;
+    }
+    timerRef.current = setTimeout(() => {
+      doLogout();
+    }, remaining);
+  }, [doLogout]);
+
+  // Reset activity timer on user interaction
+  const resetActivity = useCallback(() => {
+    if (!user) return;
+    localStorage.setItem("access_login_time", String(Date.now()));
+    startSessionTimer();
+  }, [user, startSessionTimer]);
+
+  useEffect(() => {
+    if (!user) return;
+    const events = ["mousedown", "keydown", "touchstart", "scroll"];
+    events.forEach((e) => window.addEventListener(e, resetActivity, { passive: true }));
+    return () => {
+      events.forEach((e) => window.removeEventListener(e, resetActivity));
+    };
+  }, [user, resetActivity]);
 
   useEffect(() => {
     const stored = getAccessUser();
-    if (stored) {
+    const loginTime = Number(localStorage.getItem("access_login_time") || "0");
+    if (stored && loginTime) {
+      // Check if session expired
+      if (Date.now() - loginTime > SESSION_TIMEOUT_MS) {
+        doLogout();
+        setLoading(false);
+        return;
+      }
       setUser(stored);
+      startSessionTimer();
       // Verify token is still valid
       accessAuthApi("/me")
         .then((res) => {
@@ -52,12 +102,11 @@ export function AccessAuthProvider({ children }: { children: React.ReactNode }) 
           saveAccessUser(res.user);
         })
         .catch(() => {
-          clearAccessToken();
-          clearAccessUser();
-          setUser(null);
+          doLogout();
         })
         .finally(() => setLoading(false));
     } else {
+      if (stored) doLogout(); // no login time but user exists = stale
       setLoading(false);
     }
   }, []);
@@ -66,14 +115,14 @@ export function AccessAuthProvider({ children }: { children: React.ReactNode }) 
     const res = await accessAuthApi("/login", { email, password });
     saveAccessToken(res.accessToken);
     saveAccessUser(res.user);
+    localStorage.setItem("access_login_time", String(Date.now()));
     setUser(res.user);
-  }, []);
+    startSessionTimer();
+  }, [startSessionTimer]);
 
   const logout = useCallback(() => {
-    clearAccessToken();
-    clearAccessUser();
-    setUser(null);
-  }, []);
+    doLogout();
+  }, [doLogout]);
 
   return (
     <AccessAuthContext.Provider value={{ user, loading, isAuthenticated: !!user, login, logout }}>
