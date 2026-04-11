@@ -165,6 +165,15 @@ export default function BookingPage() {
 
   useEffect(() => { if (!selectedCity || !availableDates.length) setIsDatePickerOpen(false); }, [selectedCity, availableDates.length]);
 
+  // Close occupation dropdown on click outside
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (occupationRef.current && !occupationRef.current.contains(e.target as Node)) setIsOccupationOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
   useEffect(() => {
     let active = true;
     (async () => {
