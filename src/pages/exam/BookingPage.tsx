@@ -43,6 +43,9 @@ export default function BookingPage() {
   const [balanceInfo, setBalanceInfo] = useState<any>(null);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
+  const [occupationSearch, setOccupationSearch] = useState("");
+  const [isOccupationOpen, setIsOccupationOpen] = useState(false);
+  const occupationRef = useRef<HTMLDivElement>(null);
 
   const selectedOccupation = useMemo(
     () => occupations.find((item) => String(item.id) === String(selectedOccupationId)) || null,
