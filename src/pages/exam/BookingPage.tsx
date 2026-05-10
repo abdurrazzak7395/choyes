@@ -99,8 +99,26 @@ export default function BookingPage() {
     (async () => {
       setLoadingOccupations(true); setError("");
       try {
-        const data = await api("/occupations?locale=en&per_page=200&page=1");
-        setOccupations(pickArray(data).map(normalizeOccupation));
+        const perPage = 200;
+        const all: any[] = [];
+        let page = 1;
+        // Fetch all pages until we get an empty/short page (max 50 pages safety)
+        for (; page <= 50; page++) {
+          const data = await api(`/occupations?locale=en&per_page=${perPage}&page=${page}`);
+          const arr = pickArray(data);
+          if (!arr.length) break;
+          all.push(...arr);
+          if (arr.length < perPage) break;
+        }
+        // Dedupe by id
+        const seen = new Set<string>();
+        const unique = all.filter((it) => {
+          const k = String(it?.id ?? "");
+          if (!k || seen.has(k)) return false;
+          seen.add(k);
+          return true;
+        });
+        setOccupations(unique.map(normalizeOccupation));
       } catch (err: any) { setError(err?.message || "Failed to load occupations"); }
       finally { setLoadingOccupations(false); }
     })();
