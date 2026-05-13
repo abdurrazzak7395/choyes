@@ -297,15 +297,23 @@ export default function BookingPage() {
         return direct;
       };
       try {
-        // Try exam_reservations first (contains nested exam_session.available_seats)
         let seats: number | null = null;
+        // Try plural endpoint first (more reliable)
         try {
-          const r1: any = await api(`/exam-reservations?locale=en&exam_session_id=${encodeURIComponent(sessionId)}`);
-          seats = findSeats(r1);
+          const r0: any = await api(`/exam-sessions/${encodeURIComponent(sessionId)}?locale=en`);
+          seats = findSeats(r0);
         } catch {}
         if (seats == null) {
-          const r2: any = await api(`/exam-session/${encodeURIComponent(sessionId)}?locale=en`);
-          seats = findSeats(r2);
+          try {
+            const r1: any = await api(`/exam-reservations?locale=en&exam_session_id=${encodeURIComponent(sessionId)}`);
+            seats = findSeats(r1);
+          } catch {}
+        }
+        if (seats == null) {
+          try {
+            const r2: any = await api(`/exam-session/${encodeURIComponent(sessionId)}?locale=en`);
+            seats = findSeats(r2);
+          } catch {}
         }
         if (!active) return;
         if (seats == null) {
