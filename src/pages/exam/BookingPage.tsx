@@ -43,6 +43,7 @@ export default function BookingPage() {
   const [balanceInfo, setBalanceInfo] = useState<any>(null);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
+  const [liveAvailableSeats, setLiveAvailableSeats] = useState<number | null>(null);
   const [occupationSearch, setOccupationSearch] = useState("");
   const [isOccupationOpen, setIsOccupationOpen] = useState(false);
   const occupationRef = useRef<HTMLDivElement>(null);
@@ -268,6 +269,26 @@ export default function BookingPage() {
     const codes = getPrometricCodes(selectedSession);
     if (codes[0]?.code || codes[0]?.language_code) setLanguageCode(String(codes[0].code || codes[0].language_code));
   }, [selectedSession]);
+
+  // Fetch live available_seats from exam_reservations API for the selected session
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      if (!sessionId) { setLiveAvailableSeats(null); return; }
+      try {
+        const data: any = await api(`/exam-session/${encodeURIComponent(sessionId)}?locale=en`);
+        if (!active) return;
+        const node = data?.data || data?.exam_session || data;
+        const seats = node?.available_seats ?? node?.seats_available ?? node?.remaining_seats;
+        setLiveAvailableSeats(typeof seats === "number" ? seats : seats != null ? Number(seats) : null);
+      } catch {
+        if (!active) return;
+        const fallback = (selectedSession as any)?.available_seats ?? (selectedSession as any)?.seats_available;
+        setLiveAvailableSeats(fallback != null ? Number(fallback) : null);
+      }
+    })();
+    return () => { active = false; };
+  }, [sessionId, selectedSession]);
 
   async function createHold() {
     if (!sessionId) { setError("Select test center / session first"); return; }
@@ -547,7 +568,7 @@ export default function BookingPage() {
           <div><span>Booking Type:</span> <strong>{loadingBalance ? "Checking..." : bookingMode.label}</strong></div>
           <div><span>Reservation Credits:</span> <strong>{loadingBalance ? "-" : bookingMode.reservationCredits}</strong></div>
           <div><span>Free Certificates:</span> <strong>{loadingBalance ? "-" : bookingMode.freeCertificates}</strong></div>
-          <div><span>Available Seats:</span> <strong>{selectedSession ? (selectedSession.available_seats ?? selectedSession.seats_available ?? "-") : "-"}</strong></div>
+          <div><span>Available Seats:</span> <strong>{liveAvailableSeats !== null ? liveAvailableSeats : (selectedSession ? (selectedSession.available_seats ?? selectedSession.seats_available ?? "-") : "-")}</strong></div>
           <div><span>City:</span> <strong>{siteCity || selectedCity || "-"}</strong></div>
           <div><span>Site ID:</span> <strong>{siteId || "-"}</strong></div>
           <div><span>Hold ID:</span> <strong>{holdId || "-"}</strong></div>
