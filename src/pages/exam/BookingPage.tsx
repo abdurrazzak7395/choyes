@@ -394,7 +394,7 @@ export default function BookingPage() {
         if (nextReservationId) await openTicketPdf(String(nextReservationId));
       } else {
         // Normal new booking
-        const data = await api("/exam-reservations", {
+        const data: any = await api("/exam-reservations", {
           method: "POST", body: {
             exam_session_id: Number(sessionId), occupation_id: Number(selectedOccupationId),
             methodology: methodology || "in_person", language_code: effectiveLanguageCode,
@@ -404,6 +404,11 @@ export default function BookingPage() {
         });
         const nextReservationId = extractId(data, ["id", "reservation_id", "exam_reservation_id"]);
         setReservationId(String(nextReservationId || ""));
+        // Update live seats from response if present
+        const respSeats = data?.exam_session?.available_seats ?? data?.data?.exam_session?.available_seats;
+        if (respSeats != null && String(data?.exam_session?.id ?? data?.data?.exam_session?.id) === String(sessionId)) {
+          setLiveAvailableSeats(Number(respSeats));
+        }
         if (nextReservationId && bookingMode.type === "reservation_credit") {
           try {
             await api("/reservation-credits/use", {
