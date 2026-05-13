@@ -44,6 +44,7 @@ export default function BookingPage() {
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [liveAvailableSeats, setLiveAvailableSeats] = useState<number | null>(null);
+  const [loadingSeats, setLoadingSeats] = useState(false);
   const [occupationSearch, setOccupationSearch] = useState("");
   const [isOccupationOpen, setIsOccupationOpen] = useState(false);
   const occupationRef = useRef<HTMLDivElement>(null);
@@ -274,17 +275,50 @@ export default function BookingPage() {
   useEffect(() => {
     let active = true;
     (async () => {
-      if (!sessionId) { setLiveAvailableSeats(null); return; }
+      if (!sessionId) { setLiveAvailableSeats(null); setLoadingSeats(false); return; }
+      setLoadingSeats(true);
+      const findSeats = (payload: any): number | null => {
+        const findInNode = (n: any): number | null => {
+          if (!n || typeof n !== "object") return null;
+          const es = n.exam_session;
+          if (es && String(es.id) === String(sessionId)) {
+            const s = es.available_seats ?? es.seats_available ?? es.remaining_seats;
+            if (s != null) return Number(s);
+          }
+          if (String(n.id) === String(sessionId)) {
+            const s = n.available_seats ?? n.seats_available ?? n.remaining_seats;
+            if (s != null) return Number(s);
+          }
+          return null;
+        };
+        const arr = pickArray(payload);
+        for (const it of arr) { const v = findInNode(it); if (v != null) return v; }
+        const direct = findInNode(payload?.data || payload?.exam_session || payload);
+        return direct;
+      };
       try {
-        const data: any = await api(`/exam-session/${encodeURIComponent(sessionId)}?locale=en`);
+        // Try exam_reservations first (contains nested exam_session.available_seats)
+        let seats: number | null = null;
+        try {
+          const r1: any = await api(`/exam-reservations?locale=en&exam_session_id=${encodeURIComponent(sessionId)}`);
+          seats = findSeats(r1);
+        } catch {}
+        if (seats == null) {
+          const r2: any = await api(`/exam-session/${encodeURIComponent(sessionId)}?locale=en`);
+          seats = findSeats(r2);
+        }
         if (!active) return;
-        const node = data?.data || data?.exam_session || data;
-        const seats = node?.available_seats ?? node?.seats_available ?? node?.remaining_seats;
-        setLiveAvailableSeats(typeof seats === "number" ? seats : seats != null ? Number(seats) : null);
+        if (seats == null) {
+          const fallback = (selectedSession as any)?.available_seats ?? (selectedSession as any)?.seats_available;
+          seats = fallback != null ? Number(fallback) : null;
+        }
+        setLiveAvailableSeats(seats);
       } catch {
         if (!active) return;
         const fallback = (selectedSession as any)?.available_seats ?? (selectedSession as any)?.seats_available;
         setLiveAvailableSeats(fallback != null ? Number(fallback) : null);
+      } finally {
+        if (active) setLoadingSeats(false);
       }
     })();
     return () => { active = false; };
@@ -568,7 +602,7 @@ export default function BookingPage() {
           <div><span>Booking Type:</span> <strong>{loadingBalance ? "Checking..." : bookingMode.label}</strong></div>
           <div><span>Reservation Credits:</span> <strong>{loadingBalance ? "-" : bookingMode.reservationCredits}</strong></div>
           <div><span>Free Certificates:</span> <strong>{loadingBalance ? "-" : bookingMode.freeCertificates}</strong></div>
-          <div><span>Available Seats:</span> <strong>{liveAvailableSeats !== null ? liveAvailableSeats : (selectedSession ? (selectedSession.available_seats ?? selectedSession.seats_available ?? "-") : "-")}</strong></div>
+          <div><span>Available Seats:</span> <strong>{loadingSeats ? "Loading..." : (liveAvailableSeats !== null ? liveAvailableSeats : (selectedSession ? (selectedSession.available_seats ?? selectedSession.seats_available ?? "-") : "-"))}</strong></div>
           <div><span>City:</span> <strong>{siteCity || selectedCity || "-"}</strong></div>
           <div><span>Site ID:</span> <strong>{siteId || "-"}</strong></div>
           <div><span>Hold ID:</span> <strong>{holdId || "-"}</strong></div>
