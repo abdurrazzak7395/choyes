@@ -18,6 +18,7 @@ import AccessDashboardPage from "@/pages/access/AccessDashboardPage";
 import AccessAccountsPage from "@/pages/access/AccessAccountsPage";
 import AccessUsersPage from "@/pages/access/AccessUsersPage";
 import AccessAgenciesPage from "@/pages/access/AccessAgenciesPage";
+import AccessSessionCentersPage from "@/pages/access/AccessSessionCentersPage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
