@@ -65,16 +65,24 @@ export default function BookingPage() {
     () => selectedCity ? sessions.filter((item) => String(getSessionSiteCity(item)).trim().toLowerCase() === String(selectedCity).trim().toLowerCase()) : sessions,
     [sessions, selectedCity]
   );
+  const sessionsWithResolvedCenters = useMemo(
+    () => cityFilteredSessions.map((item) => {
+      const realName = testCenterMap.get(`session:${getSessionId(item)}`);
+      if (!realName || getExplicitSessionCenterName(item)) return item;
+      return { ...item, test_center: { ...(item?.test_center || {}), name: realName } };
+    }),
+    [cityFilteredSessions, testCenterMap]
+  );
   const centerOptions = useMemo(() => {
-    const options = buildCenterOptions(cityFilteredSessions);
+    const options = buildCenterOptions(sessionsWithResolvedCenters);
     // Enrich with real test center names from the map
     return options.map((opt) => ({
       ...opt,
       name: testCenterMap.get(opt.siteId) || opt.name,
     }));
-  }, [cityFilteredSessions, testCenterMap]);
+  }, [sessionsWithResolvedCenters, testCenterMap]);
   const getResolvedSessionCenterName = (item: any) => {
-    const candidates = [String(getCenterKey(item)), String(getSessionSiteId(item))].filter(Boolean);
+    const candidates = [`session:${getSessionId(item)}`, String(getCenterKey(item)), String(getSessionSiteId(item))].filter(Boolean);
     for (const key of candidates) {
       const mapped = testCenterMap.get(key);
       if (mapped) return mapped;
@@ -82,8 +90,8 @@ export default function BookingPage() {
     return getSessionCenterName(item);
   };
   const filteredSessions = useMemo(
-    () => selectedCenterId ? cityFilteredSessions.filter((item) => getCenterKey(item) === String(selectedCenterId)) : cityFilteredSessions,
-    [cityFilteredSessions, selectedCenterId]
+    () => selectedCenterId ? sessionsWithResolvedCenters.filter((item) => getCenterKey(item) === String(selectedCenterId)) : sessionsWithResolvedCenters,
+    [sessionsWithResolvedCenters, selectedCenterId]
   );
   const selectedSession = useMemo(
     () => filteredSessions.find((item) => String(getSessionId(item)) === String(sessionId)) || null,
