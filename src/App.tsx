@@ -20,6 +20,7 @@ import AccessUsersPage from "@/pages/access/AccessUsersPage";
 import AccessAgenciesPage from "@/pages/access/AccessAgenciesPage";
 import AccessSessionCentersPage from "@/pages/access/AccessSessionCentersPage";
 import AccessTestCentersPage from "@/pages/access/AccessTestCentersPage";
+import AccessSectionRulesPage from "@/pages/access/AccessSectionRulesPage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
