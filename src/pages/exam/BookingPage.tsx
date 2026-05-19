@@ -352,7 +352,25 @@ export default function BookingPage() {
         });
       }
 
+      // 4. Build a name -> site_id lookup from local DB for every resolved
+      //    center name. This lets us stamp site_id onto sessions even when
+      //    SVP returns site_id=null (the API just gives us the name).
+      const resolvedNames = Array.from(new Set(
+        Array.from(newMap.values()).map((n) => String(n || "").trim()).filter(Boolean)
+      ));
+      const newSiteIdMap = new Map(centerNameToSiteId);
+      let siteIdChanged = false;
+      const missingNames = resolvedNames.filter((n) => !newSiteIdMap.has(n.toLowerCase()));
+      if (missingNames.length) {
+        const { data: rows } = await supabase.from("test_centers").select("site_id, name").in("name", missingNames);
+        rows?.forEach((row: any) => {
+          const k = String(row.name || "").trim().toLowerCase();
+          if (k && !newSiteIdMap.has(k)) { newSiteIdMap.set(k, String(row.site_id)); siteIdChanged = true; }
+        });
+      }
+
       if (active && changed) setTestCenterMap(newMap);
+      if (active && siteIdChanged) setCenterNameToSiteId(newSiteIdMap);
     })();
     return () => { active = false; };
   }, [sessions]);
