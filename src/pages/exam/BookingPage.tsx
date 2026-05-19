@@ -69,22 +69,7 @@ export default function BookingPage() {
     [sessions, selectedCity]
   );
   const sessionsWithResolvedCenters = useMemo(
-    () => cityFilteredSessions.map((item) => {
-      const explicit = getExplicitSessionCenterName(item);
-      const mappedName = testCenterMap.get(`session:${getSessionId(item)}`);
-      const resolvedName = explicit || mappedName || "";
-      const resolvedSiteId = getSessionSiteId(item) || (resolvedName ? centerNameToSiteId.get(resolvedName.trim().toLowerCase()) : "") || "";
-      if (!resolvedName && !resolvedSiteId) return item;
-      return {
-        ...item,
-        ...(resolvedSiteId ? { site_id: resolvedSiteId } : {}),
-        test_center: {
-          ...(item?.test_center || {}),
-          ...(resolvedName ? { name: resolvedName } : {}),
-          ...(resolvedSiteId ? { site_id: resolvedSiteId, id: item?.test_center?.id ?? resolvedSiteId } : {}),
-        },
-      };
-    }),
+    () => cityFilteredSessions.map((item) => resolveSessionCenter(item, testCenterMap, centerNameToSiteId)),
     [cityFilteredSessions, testCenterMap, centerNameToSiteId]
   );
   const centerOptions = useMemo(() => {
