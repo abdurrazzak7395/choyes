@@ -96,6 +96,39 @@ export function getExplicitSessionCenterName(item: any): string {
   return String(item?.test_center_name || item?.test_center?.name || item?.test_center?.test_center_name || "").trim();
 }
 
+/**
+ * Resolves the test center name and site_id for a session, stamping them onto the session.
+ * - `testCenterMap` is keyed by `session:<sessionId>` (name from /exam-sessions/:id detail fetch)
+ *   or by site_id (name from local DB lookup).
+ * - `centerNameToSiteId` maps lowercased center name -> site_id (from local DB lookup).
+ * When SVP returns `site_id: null`, this fills it in from the name->site_id map.
+ */
+export function resolveSessionCenter(
+  item: any,
+  testCenterMap: Map<string, string>,
+  centerNameToSiteId: Map<string, string>
+): any {
+  const explicit = getExplicitSessionCenterName(item);
+  const mappedName = testCenterMap.get(`session:${getSessionId(item)}`);
+  const resolvedName = explicit || mappedName || "";
+  const resolvedSiteId =
+    getSessionSiteId(item) ||
+    (resolvedName ? centerNameToSiteId.get(resolvedName.trim().toLowerCase()) : "") ||
+    "";
+  if (!resolvedName && !resolvedSiteId) return item;
+  return {
+    ...item,
+    ...(resolvedSiteId ? { site_id: resolvedSiteId } : {}),
+    test_center: {
+      ...(item?.test_center || {}),
+      ...(resolvedName ? { name: resolvedName } : {}),
+      ...(resolvedSiteId
+        ? { site_id: resolvedSiteId, id: item?.test_center?.id ?? resolvedSiteId }
+        : {}),
+    },
+  };
+}
+
 export function getCenterKey(item: any): string {
   const sid = getSessionSiteId(item);
   if (sid) return String(sid);
