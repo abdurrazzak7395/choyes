@@ -33,8 +33,30 @@ function getStatus(item: any) { return value(item, ["reservation_status", "statu
 function getDate(item: any) {
   return item?.exam_session?.test_date || item?.exam_session?.start_at_in_browser_time_zone || value(item, ["exam_date", "scheduled_at", "date", "examDay", "test_date", "start_at_in_browser_time_zone", "start_at"]) || "";
 }
-function getCenterName(item: any) { return item?.exam_session?.test_center?.name || value(item, ["test_center_name", "name", "site_city", "city"]) || `Site #${getSiteId(item) || "-"}`; }
-function getSiteId(item: any) { return item?.exam_session?.test_center?.site_id || value(item, ["site_id"]) || ""; }
+function getCenterName(item: any) {
+  // New SVP shape: test_center.test_center_name. Legacy: test_center.name.
+  // Always trust the explicit center name from SVP per exam_session.
+  const explicit =
+    item?.exam_session?.test_center?.test_center_name ||
+    item?.exam_session?.test_center?.name ||
+    item?.test_center?.test_center_name ||
+    item?.test_center?.name ||
+    value(item, ["test_center_name"]);
+  if (explicit) return String(explicit).trim();
+  const city = item?.exam_session?.test_center?.test_center_city || item?.exam_session?.test_center?.city || value(item, ["site_city", "city"]);
+  return city ? String(city) : `Site #${getSiteId(item) || "-"}`;
+}
+function getSiteId(item: any) {
+  // New SVP shape: test_center.test_center_id (numeric). Legacy: test_center.site_id.
+  return (
+    item?.exam_session?.test_center?.site_id ||
+    item?.exam_session?.test_center?.test_center_id ||
+    item?.test_center?.site_id ||
+    item?.test_center?.test_center_id ||
+    value(item, ["site_id"]) ||
+    ""
+  );
+}
 function getLanguageCode(item: any) { return value(item, ["language_code", "prometric_code", "code"]) || "-"; }
 function getSessionId(item: any) { return value(item, ["exam_session_id"]) || item?.exam_session?.id || ""; }
 function canReschedule(item: any) { return Boolean(item?.can_be_rescheduled); }
@@ -91,7 +113,7 @@ export default function ReservationsPage() {
       const query = new URLSearchParams({
         reschedule: "1", reservationId: String(reservationId), occupationId: String(occupationId),
         methodology: String(getMethodology(item)), examDate: String(getDate(item) || ""),
-        siteId: String(getSiteId(item) || ""), siteCity: String(value(item, ["site_city", "city"]) || item?.exam_session?.test_center?.city || ""),
+        siteId: String(getSiteId(item) || ""), siteCity: String(value(item, ["site_city", "city"]) || item?.exam_session?.test_center?.test_center_city || item?.exam_session?.test_center?.city || ""),
         languageCode: String(matchedPrometricCode || isoLang || ""),
         categoryId: catId,
       });
