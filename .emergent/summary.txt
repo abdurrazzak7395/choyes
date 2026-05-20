@@ -1,0 +1,122 @@
+<analysis>**original_problem_statement**: 
+The user wanted to import a GitHub repository (), run it, and fix an issue on the Booking page where the test center names were not displaying correctly. The upstream SVP API was updated to return new fields (, ), but the frontend was still trying to read legacy fields and incorrectly prioritizing database admin overrides over the explicit API response. PRODUCT REQUIREMENTS: Show the exact  for each  based on the new SVP API JSON structure without it being overridden incorrectly by city-wide admin rules.
+
+**User's preferred language**: Bengali (with some technical terms in English). **INSTRUCTION TO NEXT AGENT: You MUST respond in Bengali.**
+
+**what currently exists?** 
+A full-stack application with a React (Vite/Tailwind) frontend and a Supabase backend. The frontend handles exam bookings, reservations, and admin access controls, fetching data from an external SVP International API via Supabase edge functions (proxy).
+
+**Last working item**:
+- Last item agent was working: Fixing the test center name resolution on the Booking page. The agent corrected the priority logic in  so that the explicit  provided by the SVP API takes precedence over local DB admin overrides ( / ).
+- Status: USER VERIFICATION PENDING
+- Agent Testing Done: Y
+- Which testing method agent to use?: Frontend testing agent / screenshot tool (to visually verify the Booking page test center dropdowns).
+- User Testing Done: N
+
+**All Pending/In progress Issue list**:
+Issue 1: Verify  page test center name display (P1)
+  - Attempted fixes: NA
+  - Next debug checklist: Check if  also relies on legacy field names ( instead of ) or has the same priority bug.
+  - Why fix this issue and what will be achieved with the fix?: Ensures consistency across the app so the Reservations page displays the correct test center names just like the newly fixed Booking page.
+  - Status: NOT STARTED
+  - Is recurring issue?: N
+  - Should Test frontend/backend/both after fix?: Frontend
+  - Blocked on other issue: None
+
+**In progress Task List**:
+*None*
+
+**Upcoming and Future Tasks**:
+Future Tasks:
+- Task: Apply SVP API shape fixes to  page if required. (P1)
+- Task: Obtain a fresh Bearer token from the user for the SVP API to allow live end-to-end testing (current token is expired). (P2)
+
+**Completed work in this session**:
+- Added  to  to fix Vite preview blocked request error (DONE).
+- Updated  to read the new  field (DONE).
+- Updated  and  to prioritize the explicit SVP  over local admin database overrides (DONE).
+- Added  script to  for supervisor compatibility (DONE).
+- Added Vitest test file  (DONE).
+- Added Vitest test file  (DONE).
+
+**Earlier issues found/mentioned but not fixed**:
+Issue 1: Expired SVP API Token
+- Debug checklist: Check  or ask the user for a new valid bearer token for .
+- Why to solve this issue and what will be achieved with this?: Agent cannot test live API calls to the upstream SVP server because the current token returns a 401 Unauthorized.
+- Should Test frontend/backend/both after fix: NA
+- Is recurring issue?: Y
+
+**Known issue recurrence from previous fork**:
+- Issue recurrence in previous fork: None
+- Recurrence count: 0
+- Status: NOT STARTED
+
+**Code Architecture**:
+- : React frontend using Vite, TypeScript, and TailwindCSS. Contains hooks, contexts, and API lib utilities ().
+- : Boilerplate FastAPI setup (currently unused as frontend relies on Supabase proxy functions).
+- : Proxied through Supabase edge functions (, ).
+
+**Key Technical Concepts**:
+React, Vite, TypeScript, Vitest (for unit testing), Supabase (Auth & Edge Functions), External API Integration (SVP).
+
+**key DB schema**:
+- Relies on Supabase (Schema definitions mapped in ). Key tables mentioned: , , .
+
+**changes in tech stack**:
+- None.
+
+**All files of reference**:
+-  (Updated logic for test center name resolution)
+-  (Updated helper function for displaying test center)
+-  (Updated to allow Vite preview hosts)
+-  (New test file for API shape)
+-  (New test file for priority logic)
+-  (Updated test and completion results)
+-  (Uploaded Postman collections and API JS files provided by user)
+
+**Areas that need refactoring**:
+- None identified in this session.
+
+**key api endpoints**:
+-  (Upstream SVP API for fetching sessions)
+
+**Critical Info for New Agent**:
+- The upstream SVP API structure has changed. It now returns , , and  directly in the exam sessions payload.
+- You must prioritize these explicit values over the local Supabase fallback overrides ( / ) to prevent multiple different test centers in the same city from displaying the same incorrect overridden name.
+- ALWAYS reply to the user in Bengali.
+
+**documents and test reports created in this job**:
+- 
+- 
+- 
+
+**Last 10 User Messages and any pending HUMAN messages**:
+1. *User*:  (Status: FINISHED)
+2. *User*:  (Status: FINISHED)
+3. *User*:  (Status: FINISHED)
+4. *User*:  (Status: FINISHED)
+5. *User*:  (Status: FINISHED)
+6. *User*:  (Status: FINISHED)
+7. *User*:  (Status: FINISHED)
+8. *User*:  (Status: FINISHED)
+9. *User*:  (Status: FINISHED)
+
+**Project Health Check**:
+- Broken: None (Unit tests are passing).
+- Mocked: SVP API calls cannot be tested live successfully due to 401 Unauthorized (Expired Postman token).
+
+**3rd Party Integrations**:
+- Supabase (Backend/Database/Edge Functions) — requires User API Key / Supabase Config
+- SVP International API (Upstream Booking System) — requires User Bearer Token (currently expired)
+
+**Testing status**:
+- Testing agent used after significant changes: NO (Agent ran manual  unit tests successfully).
+- Troubleshoot agent used after agent stuck in loop: NO
+- Test files created: , 
+- Known regressions: None (41/41 unit tests passing).
+
+**Credentials to test flow**:
+- Not available (Postman collection token  is expired resulting in 401 Unauthorized).
+
+**What agent forgot to execute**:
+- The agent successfully applied the fixes to the  page but forgot to cross-check if the  page suffers from the exact same legacy-field issue.</analysis>
