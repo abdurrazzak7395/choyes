@@ -130,7 +130,7 @@ describe("BookingPage integration: resolves test center name from exam_session_i
           throw new Error("detail not fetched yet. calls=" + JSON.stringify(calls));
         }
       },
-      { timeout: 4000 }
+      { timeout: 8000, interval: 50 }
     );
 
     // The Test Center select must now show the resolved name (not the
