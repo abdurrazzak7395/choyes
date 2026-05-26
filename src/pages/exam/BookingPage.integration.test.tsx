@@ -33,9 +33,6 @@ const TARGET_NAME = "Rajshahi Technical Training Centre";
 
 function installApiRoutes() {
   apiMock.mockImplementation(async (path: string) => {
-    // eslint-disable-next-line no-console
-    console.log("[api]", path);
-
     // Keep occupations fetch pending forever — we drive selection via URL
     // params (occupationId + categoryId). This avoids the race where the
     // occupation-selected effect wipes selectedCity right after the
