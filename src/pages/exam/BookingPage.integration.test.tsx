@@ -118,7 +118,29 @@ describe("BookingPage integration: resolves test center name from exam_session_i
       </MemoryRouter>
     );
 
-    // Wait until the session detail fetch happens (proves we resolved by exam_session_id).
+    // Wait for the city dropdown to be populated by /available-dates response
+    // (the URL-driven selection races with the occupation reset effect, so we
+    // pick the city manually to simulate a real user).
+    await waitFor(
+      () => {
+        const citySelect = Array.from(document.querySelectorAll("select")).find(
+          (sel) => Array.from(sel.options).some((o) => o.value === "Rajshahi")
+        );
+        if (!citySelect) throw new Error("city option not populated yet");
+      },
+      { timeout: 8000, interval: 50 }
+    );
+
+    const citySelect = Array.from(document.querySelectorAll("select")).find(
+      (sel) => Array.from(sel.options).some((o) => o.value === "Rajshahi")
+    ) as HTMLSelectElement;
+
+    await act(async () => {
+      fireEvent.change(citySelect, { target: { value: "Rajshahi" } });
+    });
+
+    // Now the exam-sessions list fetch fires, followed by the detail fetch
+    // that resolves the missing test_center.name by exam_session_id.
     await waitFor(
       () => {
         const calls = apiMock.mock.calls.map(([p]: any[]) => String(p));
