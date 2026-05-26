@@ -65,14 +65,18 @@ function installApiRoutes() {
       };
     }
 
-    // Exam sessions list: ONLY test_center_id present, no nested name.
+    // Exam sessions list: nested test_center with ONLY id/test_center_id
+    // (no name) — simulates the SVP list endpoint that omits the real name.
     if (path.startsWith("/exam-sessions?")) {
       return {
         exam_sessions: [
           {
             id: TARGET_EXAM_SESSION_ID,
             available_seats: 14,
-            test_center_id: TARGET_TEST_CENTER_ID,
+            test_center: {
+              id: TARGET_TEST_CENTER_ID,
+              test_center_id: TARGET_TEST_CENTER_ID,
+            },
             site_city: "Rajshahi",
           },
         ],
