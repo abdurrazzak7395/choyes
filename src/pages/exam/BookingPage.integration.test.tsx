@@ -112,9 +112,7 @@ describe("BookingPage integration: resolves test center name from exam_session_i
   it("renders the real test center name for the session via /exam-sessions/:id detail fetch", async () => {
     render(
       <MemoryRouter
-        initialEntries={[
-          `/exam/booking?occupationId=7&categoryId=99&siteCity=Rajshahi&examDate=2026-05-20`,
-        ]}
+        initialEntries={[`/exam/booking?occupationId=7&categoryId=99`]}
       >
         <BookingPage />
       </MemoryRouter>
