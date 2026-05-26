@@ -121,13 +121,17 @@ describe("BookingPage integration: resolves test center name from exam_session_i
     );
 
     // Wait until the session detail fetch happens (proves we resolved by exam_session_id).
-    await waitFor(() => {
-      expect(
-        apiMock.mock.calls.some(([p]: any[]) =>
-          String(p).startsWith(`/exam-sessions/${TARGET_EXAM_SESSION_ID}`)
-        )
-      ).toBe(true);
-    });
+    await waitFor(
+      () => {
+        const calls = apiMock.mock.calls.map(([p]: any[]) => String(p));
+        if (
+          !calls.some((p) => p.startsWith(`/exam-sessions/${TARGET_EXAM_SESSION_ID}`))
+        ) {
+          throw new Error("detail not fetched yet. calls=" + JSON.stringify(calls));
+        }
+      },
+      { timeout: 4000 }
+    );
 
     // The Test Center select must now show the resolved name (not the
     // synthesized "Rajshahi (#54)" fallback).
