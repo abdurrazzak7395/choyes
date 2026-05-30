@@ -431,12 +431,7 @@ export default function TestCenterAvailablePage() {
               <dt className="text-muted-foreground">Test Center</dt>
               <dd className="text-foreground">{selectedCenter?.name}</dd>
               <dt className="text-muted-foreground">Test Center ID</dt>
-              <dd className="text-foreground">
-                {selectedSession?.test_center?.test_center_id ??
-                  selectedSession?.test_center?.id ??
-                  selectedSession?.test_center_id ??
-                  "—"}
-              </dd>
+              <dd className="text-foreground">{getSessionTestCenterId(selectedSession) || getSessionSiteId(selectedSession) || "—"}</dd>
               <dt className="text-muted-foreground">Exam Session ID</dt>
               <dd className="font-semibold text-foreground">{sessionId}</dd>
             </dl>
