@@ -285,7 +285,14 @@ function getSessionCenterSiteIdValue(session: any): number | null {
 }
 
 function getSessionCenterTestCenterIdValue(session: any): number | null {
-  return toPositiveNumber(session?.test_center?.test_center_id ?? session?.test_center?.id);
+  const direct = toPositiveNumber(session?.test_center?.test_center_id);
+  if (direct) return direct;
+
+  const nestedId = toPositiveNumber(session?.test_center?.id);
+  const sessionId = toPositiveNumber(session?.id);
+  if (nestedId && nestedId !== sessionId) return nestedId;
+
+  return null;
 }
 
 function getSessionSectionValue(session: any): string | null {
@@ -307,6 +314,19 @@ async function resolveSessionCenter(session: any, svpToken: string, detail: any 
   const candidateSiteId = getSessionCenterSiteIdValue(session);
   const candidateTestCenterId = getSessionCenterTestCenterIdValue(session);
   const candidateAddress = normalizeString(session?.test_center?.address || session?.address || session?.test_center?.address);
+
+  const staticRow = lookupStaticCenterByTestCenterId(candidateTestCenterId) || lookupStaticCenterByName(candidateName);
+  if (!candidateName && staticRow) {
+    const result = {
+      test_center_id: candidateTestCenterId,
+      site_id: candidateSiteId || staticRow.site_id,
+      name: staticRow.name,
+      city: candidateCity || staticRow.city,
+      address: candidateAddress,
+    };
+    if (sessionId) centerCache.set(sessionId, result);
+    return result;
+  }
 
   if (candidateName) {
     const result = {
@@ -375,6 +395,19 @@ async function resolveSessionCenter(session: any, svpToken: string, detail: any 
       if (sessionId) centerCache.set(sessionId, result);
       return result;
     }
+
+    const staticRow = lookupStaticCenterByTestCenterId(detailTestCenterId);
+    if (detailTestCenterId && staticRow) {
+      const result = {
+        test_center_id: detailTestCenterId,
+        site_id: detailSiteId || staticRow.site_id,
+        name: staticRow.name,
+        city: detailCity || staticRow.city,
+        address: detailAddress,
+      };
+      if (sessionId) centerCache.set(sessionId, result);
+      return result;
+    }
   }
 
   try {
@@ -409,6 +442,19 @@ async function resolveSessionCenter(session: any, svpToken: string, detail: any 
           }
         }
       }
+      if (sessionId) centerCache.set(sessionId, result);
+      return result;
+    }
+
+    const staticRow = lookupStaticCenterByTestCenterId(detailTestCenterId);
+    if (detailTestCenterId && staticRow) {
+      const result = {
+        test_center_id: detailTestCenterId,
+        site_id: detailSiteId || staticRow.site_id,
+        name: staticRow.name,
+        city: detailCity || staticRow.city,
+        address: detailAddress,
+      };
       if (sessionId) centerCache.set(sessionId, result);
       return result;
     }
