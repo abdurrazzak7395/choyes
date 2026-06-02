@@ -701,16 +701,27 @@ export default function BookingPage() {
             <span>Exam Session *</span>
             <select value={sessionId} onChange={(e) => setSessionId(e.target.value)} disabled={!filteredSessions.length}>
               <option value="">{loadingSessions ? "Loading sessions..." : "Select session"}</option>
-              {filteredSessions.map((item) => {
+              {filteredSessions.map((item, idx) => {
                 const displayId = getSessionCenterDisplayId(item);
                 const displayIdType = getSessionCenterDisplayIdType(item);
                 const idLabel = displayId ? ` (${displayIdType === "site" ? "Site" : "Center"} #${displayId})` : "";
                 const sid = getSessionSiteId(item);
                 const realName = testCenterMap.get(String(sid)) || getSessionCenterName(item);
                 const seats = item?.available_seats ?? item?.seats_available ?? item?.remaining_seats ?? null;
+                const rawTime =
+                  item?.start_time || item?.start_at_time || item?.exam_time ||
+                  item?.start_date_in_browser_time_zone || item?.start_date_in_tc_time_zone ||
+                  item?.start_at || item?.scheduled_at || "";
+                let timeLabel = "";
+                if (rawTime) {
+                  const d = new Date(rawTime);
+                  timeLabel = isNaN(d.getTime())
+                    ? String(rawTime)
+                    : d.toLocaleString("en-US", { month: "2-digit", day: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+                }
                 return (
                   <option key={getSessionId(item)} value={getSessionId(item)}>
-                    {realName}{idLabel} | Session #{getSessionId(item)}{seats !== null && seats !== undefined ? ` | Seats: ${seats}` : ""}
+                    {realName}{idLabel}{timeLabel ? ` | ${timeLabel}` : ` | Session ${idx + 1}`}{seats !== null && seats !== undefined ? ` | Seats: ${seats}` : ""}
                   </option>
                 );
               })}
