@@ -408,9 +408,20 @@ export default function BookingPage() {
     if (!sessionIds.length) { setError("No valid exam sessions found for hold creation"); return; }
     setCreatingHold(true); setError(""); setStatus("");
     try {
-      const data = await api("/temporary-seats", { method: "POST", body: { exam_session_id: sessionIds, methodology: methodology || "in_person" } });
+      const data: any = await api("/temporary-seats", { method: "POST", body: { exam_session_id: sessionIds, methodology: methodology || "in_person" } });
       const nextHoldId = extractId(data, ["id", "hold_id", "temporary_seat_id"]);
       setHoldId(String(nextHoldId || ""));
+      // After hold is created, fetch the resolved exam session detail (numeric id) per SVP flow.
+      const numericSessionId =
+        data?.exam_session?.id ?? data?.exam_session_id ?? data?.data?.exam_session?.id ?? data?.session_id ?? nextHoldId;
+      if (numericSessionId) {
+        try {
+          const detail: any = await api(`/exam-session/${encodeURIComponent(numericSessionId)}?locale=en`);
+          const es = detail?.exam_session || detail;
+          const seats = es?.available_seats ?? es?.seats_available;
+          if (seats != null) setLiveAvailableSeats(Number(seats));
+        } catch {}
+      }
       setStatus(nextHoldId ? `Hold created: #${nextHoldId}` : "Hold created");
     } catch (err: any) { setError(err?.message || "Failed to create hold"); }
     finally { setCreatingHold(false); }
