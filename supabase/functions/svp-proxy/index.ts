@@ -34,10 +34,11 @@ async function svpFetch(
 ) {
   const url = `${SVP_BASE}${path}${path.includes("?") ? "&" : "?"}locale=${SVP_LOCALE}`;
   const headers: Record<string, string> = {
-    Accept: "application/json",
+    Accept: "application/json, text/plain, */*",
     Origin: SVP_ORIGIN,
     Referer: `${SVP_ORIGIN}/`,
     "User-Agent": SVP_UA,
+    "x-tenant-name": "svp-international",
   };
   if (opts.body) headers["Content-Type"] = "application/json;charset=UTF-8";
   if (opts.token) headers["Authorization"] = `Bearer ${opts.token}`;
