@@ -400,9 +400,10 @@ export default function BookingPage() {
 
   async function createHold() {
     if (!sessionId) { setError("Select test center / session first"); return; }
+    // SVP expects exam_session_id as array of (encrypted) string IDs — keep raw strings, do NOT cast to Number.
     const sessionIds = Array.from(new Set(
       (filteredSessions.length ? filteredSessions : [selectedSession])
-        .map((item) => Number(getSessionId(item))).filter((item) => Number.isFinite(item) && item > 0)
+        .map((item) => String(getSessionId(item)).trim()).filter((item) => item.length > 0)
     ));
     if (!sessionIds.length) { setError("No valid exam sessions found for hold creation"); return; }
     setCreatingHold(true); setError(""); setStatus("");
@@ -473,8 +474,8 @@ export default function BookingPage() {
         const data = await api(`/exam-reservations/${encodeURIComponent(oldReservationId)}/reschedule`, {
           method: "POST",
           body: {
-            id: Number(oldReservationId),
-            exam_session_id: Number(sessionId),
+            id: oldReservationId,
+            exam_session_id: sessionId,
             language_code: rescheduleLanguageCode,
           },
         });
@@ -486,7 +487,7 @@ export default function BookingPage() {
         // Normal new booking
         const data: any = await api("/exam-reservations", {
           method: "POST", body: {
-            exam_session_id: Number(sessionId), occupation_id: Number(selectedOccupationId),
+            exam_session_id: sessionId, occupation_id: Number(selectedOccupationId),
             methodology: methodology || "in_person", language_code: effectiveLanguageCode,
             site_id: requestSiteId ? requestSiteId : null,
             site_city: requestSiteCity || selectedCity || null,
