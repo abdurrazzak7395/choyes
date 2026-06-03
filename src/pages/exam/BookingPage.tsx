@@ -474,8 +474,8 @@ export default function BookingPage() {
         const data = await api(`/exam-reservations/${encodeURIComponent(oldReservationId)}/reschedule`, {
           method: "POST",
           body: {
-            id: Number(oldReservationId),
-            exam_session_id: Number(sessionId),
+            id: oldReservationId,
+            exam_session_id: sessionId,
             language_code: rescheduleLanguageCode,
           },
         });
