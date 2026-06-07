@@ -584,6 +584,38 @@ Deno.serve(async (req) => {
       }
     }
 
+    if (req.method === "GET" && path === "/test-centers") {
+      try {
+        return json(await svpFetch(buildPath("/api/v1/individual_labor_space/test_centers", query), { method: "GET", token: svpToken }));
+      } catch (err: any) {
+        if (err?.statusCode !== 404) throw err;
+        const sessions = await svpFetch(buildPath("/api/v1/individual_labor_space/exam_sessions", query), { method: "GET", token: svpToken });
+        return json(await buildTestCentersFromSessions(sessions, svpToken));
+      }
+    }
+
+    const testCenterDetailMatch = path.match(/^\/test-centers\/([^/]+)$/);
+    if (req.method === "GET" && testCenterDetailMatch) {
+      const rawId = decodeURIComponent(testCenterDetailMatch[1]);
+      const numericId = Number(rawId);
+      try {
+        return json(await svpFetch(buildPath(`/api/v1/individual_labor_space/test_centers/${encodeURIComponent(rawId)}`, query), { method: "GET", token: svpToken }));
+      } catch (err: any) {
+        if (err?.statusCode !== 404) throw err;
+        const cached = Number.isFinite(numericId) ? testCenterCache.get(numericId) : null;
+        if (cached) return json({ test_center: cached, data: cached });
+        const staticRow = Number.isFinite(numericId) ? lookupStaticCenterByTestCenterId(numericId) : null;
+        if (staticRow) return json({ test_center: { id: numericId, test_center_id: numericId, ...staticRow }, data: { id: numericId, test_center_id: numericId, ...staticRow } });
+        const { data } = await getSupabase()
+          .from("test_centers")
+          .select("site_id,name,city,address")
+          .eq("site_id", numericId)
+          .maybeSingle();
+        if (data) return json({ test_center: { id: data.site_id, test_center_id: data.site_id, ...data }, data: { id: data.site_id, test_center_id: data.site_id, ...data } });
+        throw err;
+      }
+    }
+
     // ── Exam sessions (enriched with available_seats) ────────
     if (req.method === "GET" && path === "/exam-sessions") {
       const listData: any = await svpFetch(
