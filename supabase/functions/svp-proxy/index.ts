@@ -234,6 +234,17 @@ const centerCache = new Map<string, {
   address: string | null;
 }>();
 
+const testCenterCache = new Map<number, {
+  id: number;
+  test_center_id: number | null;
+  site_id: number | null;
+  name: string;
+  city: string | null;
+  address: string | null;
+  available_seats?: number | null;
+  total_seats?: number | null;
+}>();
+
 const sectionCenterRules: Record<string, Record<string, { name: string; test_center_id: number; site_id: number }>> = {
   Dhaka: {
     cbt: { name: "Prometric Dhaka — Banani", test_center_id: 9012, site_id: 50231 },
