@@ -509,6 +509,51 @@ async function resolveSessionCenter(session: any, svpToken: string, detail: any 
   return result;
 }
 
+async function buildTestCentersFromSessions(listData: any, svpToken: string) {
+  const sessions = pickFirstArray(listData);
+  const grouped = new Map<string, {
+    id: number;
+    test_center_id: number | null;
+    site_id: number | null;
+    name: string;
+    city: string | null;
+    address: string | null;
+    available_seats: number | null;
+    total_seats: number | null;
+    session_ids: string[];
+  }>();
+
+  await Promise.all(sessions.map(async (session: any) => {
+    const resolved = await resolveSessionCenter(session, svpToken, session);
+    const key = String(resolved.site_id || resolved.test_center_id || `${resolved.city || ""}:${resolved.name || ""}`);
+    const id = resolved.site_id || resolved.test_center_id || stablePositiveId(key);
+    const existing = grouped.get(key);
+    const available = toPositiveNumber(session?.available_seats ?? session?.seats_available);
+    const total = toPositiveNumber(session?.total_seats ?? session?.seats_total);
+    if (existing) {
+      existing.available_seats = (existing.available_seats || 0) + (available || 0);
+      existing.total_seats = (existing.total_seats || 0) + (total || 0);
+      if (session?.id) existing.session_ids.push(String(session.id));
+      return;
+    }
+    grouped.set(key, {
+      id,
+      test_center_id: resolved.test_center_id,
+      site_id: resolved.site_id,
+      name: resolved.name,
+      city: resolved.city,
+      address: resolved.address,
+      available_seats: available,
+      total_seats: total,
+      session_ids: session?.id ? [String(session.id)] : [],
+    });
+  }));
+
+  const centers = [...grouped.values()];
+  centers.forEach((center) => testCenterCache.set(center.id, center));
+  return { test_centers: centers, data: centers };
+}
+
 // ── Main handler ────────────────────────────────────────────────────
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
