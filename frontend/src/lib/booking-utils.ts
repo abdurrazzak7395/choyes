@@ -1,4 +1,5 @@
 // Utility functions for booking data normalization
+import { resolveCenterDisplayName } from "./real-test-centers";
 
 export function pickArray(payload: any): any[] {
   if (Array.isArray(payload)) return payload;
@@ -89,18 +90,20 @@ export function getSessionSiteCity(item: any): string {
 }
 
 export function getSessionCenterName(item: any): string {
-  const name = item?.test_center_name || item?.test_center?.name || item?.test_center?.test_center_name;
-  if (name) return String(name);
+  const apiName = item?.test_center_name || item?.test_center?.name || item?.test_center?.test_center_name;
+  const city = getSessionSiteCity(item);
+  const siteId = getSessionSiteId(item);
+  const tcId = getSessionTestCenterId(item);
+  const resolved = resolveCenterDisplayName(apiName, city, siteId, tcId);
+  if (resolved && resolved !== "Unknown Center") return resolved;
 
-  const city = getSessionSiteCity(item) || "Center";
   const displayId = getSessionCenterDisplayId(item);
   const displayType = getSessionCenterDisplayIdType(item);
   if (displayId) {
     const label = displayType === "site" ? "Site" : "Center";
-    return `${city} (${label} #${displayId})`;
+    return `${city || "Center"} (${label} #${displayId})`;
   }
-
-  return city;
+  return city || "Center";
 }
 
 export function getCenterKey(item: any): string {

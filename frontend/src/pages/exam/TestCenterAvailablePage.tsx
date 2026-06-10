@@ -83,7 +83,15 @@ export default function TestCenterAvailablePage() {
   );
   const centerOptions = useMemo(() => {
     const opts = buildCenterOptions(cityFiltered);
-    return opts.map((o) => ({ ...o, name: centerNameMap.get(o.siteId) || o.name }));
+    return opts.map((o) => ({
+      ...o,
+      name: resolveCenterDisplayName(
+        centerNameMap.get(o.siteId) || o.name,
+        o.city,
+        o.displayId,
+        o.siteId
+      ),
+    }));
   }, [cityFiltered, centerNameMap]);
 
   const sessionOptions = useMemo(
