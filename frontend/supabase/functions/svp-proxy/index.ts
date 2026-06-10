@@ -871,6 +871,7 @@ Deno.serve(async (req) => {
           test_center,
           test_center_name: resolved.name || examSession?.test_center_name || examSession?.test_center?.name || test_center?.name,
         });
+        harvestFromPayload(normalized).catch(() => {});
         return json(response?.exam_session ? { ...response, exam_session: normalized } : normalized);
       }
     }
