@@ -354,6 +354,63 @@ async function lookupCenterByName(name: string, city: string | null) {
   return Array.isArray(data) && data.length > 0 ? data[0] : null;
 }
 
+// Harvest test_center info from real SVP responses (exam_reservations, exam_sessions)
+// and persist them in public.test_centers so the directory stays accurate.
+// Real SVP `test_center.id` (e.g. 102 for "Tangail Technical Training Center")
+// is used as our `site_id` primary key — `site_id` from prometric is often null
+// for in_person bookings, but `id` is always present.
+async function harvestTestCenter(tc: any): Promise<void> {
+  if (!tc || typeof tc !== "object") return;
+  const idCandidate =
+    toPositiveNumber(tc.id) ??
+    toPositiveNumber(tc.test_center_id) ??
+    toPositiveNumber(tc.site_id);
+  const name = normalizeString(tc.name || tc.test_center_name);
+  if (!idCandidate || !name) return;
+  const city = normalizeString(tc.city || tc.test_center_city);
+  const address = normalizeString(tc.address);
+  const countryCode = normalizeString(tc.country_code);
+  try {
+    const supabase = getSupabase();
+    await supabase.from("test_centers").upsert(
+      {
+        site_id: idCandidate,
+        name,
+        city,
+        address,
+        country_code: countryCode,
+      },
+      { onConflict: "site_id" }
+    );
+    // Also refresh in-memory directory cache so the change is visible immediately.
+    centerDirectoryCache = null;
+  } catch (err) {
+    console.warn("harvestTestCenter failed:", (err as any)?.message);
+  }
+}
+
+// Walk an arbitrary payload and harvest every nested test_center object.
+function harvestFromPayload(payload: any): Promise<void> {
+  const seen = new Set<any>();
+  const tasks: Promise<void>[] = [];
+  function walk(node: any) {
+    if (!node || typeof node !== "object" || seen.has(node)) return;
+    seen.add(node);
+    if (Array.isArray(node)) { for (const item of node) walk(item); return; }
+    if ((node.name || node.test_center_name) && (node.id || node.test_center_id || node.site_id)
+        && (node.address !== undefined || node.city !== undefined || node.test_center_city !== undefined)) {
+      tasks.push(harvestTestCenter(node));
+    }
+    if (node.test_center) tasks.push(harvestTestCenter(node.test_center));
+    for (const key of Object.keys(node)) {
+      if (key === "test_center") continue;
+      walk(node[key]);
+    }
+  }
+  walk(payload);
+  return Promise.all(tasks).then(() => undefined);
+}
+
 async function resolveSessionCenter(session: any, svpToken: string, detail: any = null) {
   const sessionId = String(session?.id || "");
   const candidateName = getSessionCenterNameValue(session);
@@ -795,6 +852,7 @@ Deno.serve(async (req) => {
         listData.exam_sessions = enriched.map(normalizeSessionShape);
       }
 
+      harvestFromPayload(listData).catch(() => {});
       return json(listData);
     }
 
@@ -813,6 +871,7 @@ Deno.serve(async (req) => {
           test_center,
           test_center_name: resolved.name || examSession?.test_center_name || examSession?.test_center?.name || test_center?.name,
         });
+        harvestFromPayload(normalized).catch(() => {});
         return json(response?.exam_session ? { ...response, exam_session: normalized } : normalized);
       }
     }
@@ -872,6 +931,14 @@ Deno.serve(async (req) => {
       const svpPath = typeof route.svpPath === "function" ? route.svpPath(match, query) : route.svpPath;
       const body = route.bodyForward ? await req.json().catch(() => ({})) : undefined;
       const data = await svpFetch(buildPath(svpPath, query), { method: route.method, token: svpToken, body });
+
+      // Harvest any test_center info from the response so the directory
+      // stays in sync with what SVP actually returns (e.g. on successful
+      // /exam_reservations POST the response includes the real center).
+      if (/exam[-_]reservations?|exam[-_]sessions?|test[-_]centers/.test(svpPath)) {
+        harvestFromPayload(data).catch(() => {});
+      }
+
       return json(data);
     }
 
