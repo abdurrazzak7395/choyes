@@ -135,6 +135,9 @@ export default function TestCenterAvailablePage() {
     })();
   }, []);
 
+  // Preload the full SVP center directory once for accurate name resolution
+  useEffect(() => { ensureCenterDirectory().catch(() => {}); }, []);
+
   // 2. Load available dates when occupation changes
   useEffect(() => {
     let active = true;
