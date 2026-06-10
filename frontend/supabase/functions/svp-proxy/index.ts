@@ -672,6 +672,20 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ── Center directory (full site_id → name map, cached) ──
+    if (req.method === "GET" && path === "/center-directory") {
+      const force = url.searchParams.get("refresh") === "1";
+      if (force || !centerDirectoryCache || Date.now() - centerDirectoryCache.fetchedAt > CENTER_DIRECTORY_TTL_MS) {
+        const centers = await buildCenterDirectory(svpToken);
+        centerDirectoryCache = { fetchedAt: Date.now(), centers };
+      }
+      return json({
+        fetched_at: centerDirectoryCache.fetchedAt,
+        count: centerDirectoryCache.centers.length,
+        centers: centerDirectoryCache.centers,
+      });
+    }
+
     if (req.method === "GET" && path === "/test-centers") {
       try {
         return json(await svpFetch(buildPath("/api/v1/individual_labor_space/test_centers", query), { method: "GET", token: svpToken }));
