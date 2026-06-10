@@ -1,11 +1,12 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Calendar, Plus, MapPin } from "lucide-react";
+import { LayoutDashboard, Calendar, Plus, MapPin, Zap } from "lucide-react";
 
 const navItems = [
   { to: "/dashboard", label: "Account Dashboard", icon: LayoutDashboard },
   { to: "/exam/reservations", label: "My bookings", icon: Calendar },
   { to: "/exam/booking", label: "New booking", icon: Plus },
   { to: "/exam/test-center-available", label: "TEST CENTER AVAILABLE NEW", icon: MapPin },
+  { to: "/exam/reservation-flow", label: "Reservation Flow", icon: Zap },
 ];
 
 export default function Sidebar() {
