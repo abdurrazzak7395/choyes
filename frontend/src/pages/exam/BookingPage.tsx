@@ -36,6 +36,7 @@ export default function BookingPage() {
   const [sessionId, setSessionId] = useState("");
   const [languageCode, setLanguageCode] = useState("");
   const [holdId, setHoldId] = useState("");
+  const [holdExamSessionId, setHoldExamSessionId] = useState("");
   const [reservationId, setReservationId] = useState("");
   const [loadingOccupations, setLoadingOccupations] = useState(false);
   const [loadingDates, setLoadingDates] = useState(false);
@@ -446,9 +447,19 @@ export default function BookingPage() {
       const data: any = await api("/temporary-seats", { method: "POST", body: { exam_session_id: sessionIds, methodology: methodology || "in_person" } });
       const nextHoldId = extractId(data, ["id", "hold_id", "temporary_seat_id"]);
       setHoldId(String(nextHoldId || ""));
-      // After hold is created, fetch the resolved exam session detail (numeric id) per SVP flow.
-      const numericSessionId =
-        data?.exam_session?.id ?? data?.data?.exam_session?.id ?? data?.session_id ?? sessionId;
+      // Capture the numeric exam_session_id returned by the hold response so the UI can show it.
+      const holdSessionId =
+        data?.exam_session_id ??
+        data?.data?.exam_session_id ??
+        data?.exam_session?.id ??
+        data?.data?.exam_session?.id ??
+        data?.session_id ??
+        "";
+      if (holdSessionId) {
+        setHoldExamSessionId(String(holdSessionId));
+        setSessionId(String(holdSessionId));
+      }
+      const numericSessionId = holdSessionId || sessionId;
       if (numericSessionId) {
         try {
           const detail: any = await api(`/exam-session/${encodeURIComponent(numericSessionId)}?locale=en`);
@@ -457,7 +468,11 @@ export default function BookingPage() {
           if (seats != null) setLiveAvailableSeats(Number(seats));
         } catch {}
       }
-      setStatus(nextHoldId ? `Hold created: #${nextHoldId}` : "Hold created");
+      setStatus(
+        nextHoldId
+          ? `Hold created: #${nextHoldId}${holdSessionId ? ` · Exam Session ID: ${holdSessionId}` : ""}`
+          : "Hold created"
+      );
     } catch (err: any) { setError(err?.message || "Failed to create hold"); }
     finally { setCreatingHold(false); }
   }
@@ -914,6 +929,7 @@ export default function BookingPage() {
           <div><span>City:</span> <strong>{siteCity || selectedCity || "-"}</strong></div>
           <div><span>Site ID:</span> <strong>{siteId || "-"}</strong></div>
           <div><span>Hold ID:</span> <strong>{holdId || "-"}</strong></div>
+          <div><span>Exam Session ID:</span> <strong>{holdExamSessionId || sessionId || "-"}</strong></div>
           <div><span>Booking No:</span> <strong>{reservationId || "-"}</strong></div>
         </div>
 
