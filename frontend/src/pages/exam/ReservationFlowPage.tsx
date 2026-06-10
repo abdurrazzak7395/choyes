@@ -132,10 +132,32 @@ export default function ReservationFlowPage() {
       if (occId) setSelectedOccupationId(occId);
       const m = extractMethodology(data);
       if (m) setMethodology(m);
-      if (!id) setHoldError("Hold created but could not find a numeric exam_session_id in response.");
+      if (!id) {
+        setHoldError("Hold created but could not find a numeric exam_session_id in response.");
+      } else if (occId) {
+        // Auto-submit reservation with only exam_session_id and occupation_id
+        await submitReservation(id, occId);
+      } else {
+        setHoldError("Hold created but could not find occupation_id in response. Select one manually.");
+      }
     } catch (err: any) {
       setHoldError(err?.message || "Failed to create hold");
     } finally { setHoldLoading(false); }
+  }
+
+  async function submitReservation(sessionId: number, occupationId: string | number) {
+    setReservationError(""); setReservationResp(null);
+    const body = {
+      exam_session_id: Number(sessionId),
+      occupation_id: Number(occupationId),
+    };
+    setReservationLoading(true);
+    try {
+      const data = await api(`/exam-reservations`, { method: "POST", body });
+      setReservationResp(data);
+    } catch (err: any) {
+      setReservationError(err?.message || "Reservation failed");
+    } finally { setReservationLoading(false); }
   }
 
   async function handleCreateReservation() {
