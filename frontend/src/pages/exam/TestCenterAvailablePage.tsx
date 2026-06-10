@@ -87,7 +87,9 @@ export default function TestCenterAvailablePage() {
     return opts.map((o) => ({
       ...o,
       name: resolveCenterDisplayName(
-        centerNameMap.get(o.siteId) || o.name,
+        centerNameMap.get(o.siteId) ||
+          getDirectoryCenterName(o.siteId, o.displayId) ||
+          o.name,
         o.city,
         o.displayId,
         o.siteId
