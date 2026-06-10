@@ -44,6 +44,7 @@ const App = () => (
               <Route path="/exam/test-center-available" element={<ProtectedRoute><TestCenterAvailablePage /></ProtectedRoute>} />
               <Route path="/exam/test-center-browse" element={<ProtectedRoute><TestCenterBrowsePage /></ProtectedRoute>} />
               <Route path="/exam/reservations" element={<ProtectedRoute><ReservationsPage /></ProtectedRoute>} />
+              <Route path="/exam/reservation-flow" element={<ProtectedRoute><ReservationFlowPage /></ProtectedRoute>} />
 
               {/* Access Control System */}
               <Route path="/access/login" element={<AccessLoginPage />} />
