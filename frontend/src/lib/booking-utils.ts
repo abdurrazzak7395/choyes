@@ -1,4 +1,5 @@
 // Utility functions for booking data normalization
+import { resolveCenterDisplayName } from "./real-test-centers";
 
 export function pickArray(payload: any): any[] {
   if (Array.isArray(payload)) return payload;
