@@ -590,13 +590,28 @@ const CENTER_DIRECTORY_TTL_MS = 10 * 60 * 1000; // 10 minutes
 async function buildCenterDirectory(svpToken: string) {
   const map = new Map<string, { site_id: number | null; test_center_id: number | null; name: string; city: string | null }>();
 
-  const upsert = (row: { site_id: number | null; test_center_id: number | null; name: string; city: string | null }) => {
+  // Priority: DB (curated) > static > SVP. Later upserts OVERRIDE earlier ones
+  // so the user-curated Supabase row always wins.
+  const upsert = (
+    row: { site_id: number | null; test_center_id: number | null; name: string; city: string | null },
+    override = false,
+  ) => {
     if (!row.name) return;
-    const key = String(row.site_id || row.test_center_id || row.name);
-    if (!map.has(key)) map.set(key, row);
+    // Reject obviously junk site_ids (real SVP IDs are small)
+    if (row.site_id && row.site_id > 100000) return;
+    const key = String(row.site_id || row.test_center_id || row.name.toLowerCase());
+    if (override || !map.has(key)) {
+      const existing = map.get(key);
+      map.set(key, {
+        site_id: row.site_id ?? existing?.site_id ?? null,
+        test_center_id: row.test_center_id ?? existing?.test_center_id ?? null,
+        name: row.name,
+        city: row.city ?? existing?.city ?? null,
+      });
+    }
   };
 
-  // 1. Pull all pages from SVP /test_centers
+  // 1. SVP /test_centers (lowest priority — used only as fallback)
   try {
     for (let page = 1; page <= 20; page++) {
       const data: any = await svpFetch(
@@ -619,12 +634,12 @@ async function buildCenterDirectory(svpToken: string) {
     // SVP list endpoint may not exist; fall through to other sources
   }
 
-  // 2. Static fallback list
+  // 2. Static fallback list (overrides SVP)
   Object.values(STATIC_TEST_CENTERS).forEach((c) =>
-    upsert({ site_id: c.site_id, test_center_id: c.site_id, name: c.name, city: c.city })
+    upsert({ site_id: c.site_id, test_center_id: c.site_id, name: c.name, city: c.city }, true)
   );
 
-  // 3. Supabase DB
+  // 3. Supabase DB (highest priority — overrides everything)
   try {
     const { data } = await getSupabase().from("test_centers").select("site_id,name,city");
     data?.forEach((row: any) =>
@@ -633,7 +648,7 @@ async function buildCenterDirectory(svpToken: string) {
         test_center_id: toPositiveNumber(row?.site_id),
         name: normalizeString(row?.name) || "",
         city: normalizeString(row?.city),
-      })
+      }, true)
     );
   } catch {
     // DB might not have the table populated; ignore
