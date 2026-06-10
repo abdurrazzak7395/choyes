@@ -36,7 +36,7 @@ const App = () => (
             <Routes>
               {/* SVP Auth */}
               <Route path="/" element={<Navigate to="/access/login" replace />} />
-              <Route path="/index" element={<Navigate to="/access/login" replace />} />
+              <Route path="/index" element={<Navigate to="/auth/login" replace />} />
               <Route path="/auth/login" element={<AccessProtectedRoute allowedRoles={["USER"]}><LoginPage /></AccessProtectedRoute>} />
               <Route path="/auth/otp" element={<AccessProtectedRoute allowedRoles={["USER"]}><OtpPage /></AccessProtectedRoute>} />
               <Route path="/user" element={<Navigate to="/auth/login" replace />} />
