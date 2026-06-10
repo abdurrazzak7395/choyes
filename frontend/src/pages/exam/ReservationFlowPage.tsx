@@ -127,6 +127,11 @@ export default function ReservationFlowPage() {
       const id = extractExamSessionId(data);
       setRealExamSessionId(id);
       setTestCenter(extractTestCenter(data));
+      // Auto-fill occupation_id and methodology from hold response
+      const occId = extractOccupationId(data);
+      if (occId) setSelectedOccupationId(occId);
+      const m = extractMethodology(data);
+      if (m) setMethodology(m);
       if (!id) setHoldError("Hold created but could not find a numeric exam_session_id in response.");
     } catch (err: any) {
       setHoldError(err?.message || "Failed to create hold");
@@ -137,18 +142,10 @@ export default function ReservationFlowPage() {
     setReservationError(""); setReservationResp(null);
     if (!realExamSessionId) { setReservationError("Create a hold first to obtain real exam_session_id"); return; }
     if (!selectedOccupationId) { setReservationError("Select an occupation"); return; }
-    const languageCode =
-      selectedOccupation?.languageCodes?.[0]?.code ||
-      selectedOccupation?.language_codes?.[0]?.code ||
-      "LOABB";
-    const body = {
+    // Minimal body per user request: only exam_session_id and occupation_id
+    const body: Record<string, any> = {
       exam_session_id: Number(realExamSessionId),
       occupation_id: Number(selectedOccupationId),
-      language_code: languageCode,
-      site_id: null,
-      site_city: null,
-      hold_id: null,
-      methodology,
     };
     setReservationLoading(true);
     try {
