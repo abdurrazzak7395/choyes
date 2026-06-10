@@ -868,7 +868,9 @@ export default function BookingPage() {
                 const rawSessionId = String(getSessionId(item));
                 const sessionLabel = rawSessionId.includes("--") ? `Session ${idx + 1}` : `Session #${rawSessionId}`;
                 const realName = resolveCenterDisplayName(
-                  testCenterMap.get(String(sid)) || getSessionCenterName(item),
+                  testCenterMap.get(String(sid)) ||
+                    getDirectoryCenterName(sid, getSessionTestCenterId(item)) ||
+                    getSessionCenterName(item),
                   getSessionSiteCity(item),
                   getSessionTestCenterId(item),
                   sid
