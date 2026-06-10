@@ -729,9 +729,11 @@ export default function BookingPage() {
             <span>Exam Session *</span>
             <select value={sessionId} onChange={(e) => setSessionId(e.target.value)} disabled={!filteredSessions.length}>
               <option value="">{loadingSessions ? "Loading sessions..." : "Select session"}</option>
-              {filteredSessions.map((item) => {
+              {filteredSessions.map((item, idx) => {
                 const sid = getSessionSiteId(item);
                 const idLabel = sid ? ` (Site #${sid})` : "";
+                const rawSessionId = String(getSessionId(item));
+                const sessionLabel = rawSessionId.includes("--") ? `Session ${idx + 1}` : `Session #${rawSessionId}`;
                 const realName = resolveCenterDisplayName(
                   testCenterMap.get(String(sid)) || getSessionCenterName(item),
                   getSessionSiteCity(item),
@@ -752,7 +754,7 @@ export default function BookingPage() {
                 }
                 return (
                   <option key={getSessionId(item)} value={getSessionId(item)}>
-                    {realName}{idLabel} | Session #{getSessionId(item)}{timeLabel ? ` | ${timeLabel}` : ""}{seats !== null && seats !== undefined ? ` | Seats: ${seats}` : ""}
+                    {realName}{idLabel} | {sessionLabel}{timeLabel ? ` | ${timeLabel}` : ""}{seats !== null && seats !== undefined ? ` | Seats: ${seats}` : ""}
                   </option>
                 );
               })}

@@ -24,6 +24,15 @@ SVP (svp-international.pacc.sa) exam booking system for Bangladesh test centers,
 - Added data-testids (browse-city-select, browse-date-select, tca-occupation-select, tca-city-select, tca-date-select, tca-center-select, tca-session-select, center-item-{id}, center-detail, book-exam-here-btn).
 - Full system test (iteration_1.json): 100% pass — Access login/dashboard/accounts/users/agencies/logout, route protection, graceful error states on exam pages, 3/3 live edge-function curls, 21/21 vitest.
 
+## LIVE SVP VERIFICATION (June 10 2026) — with real user credentials
+- SVP creds: mdrahadulislamsvp55445@yopmail.com / aRrazzak90# (OTP via email — yopmail inbox public but CAPTCHA-gated; user pastes OTP).
+- VERIFIED LIVE: login → OTP_SENT → otp-verify → tokens (access 15min, refresh, sessionId; auto-refresh works in api.ts).
+- VERIFIED LIVE: /occupations (234), /available-dates (19 for cat 59), /exam-sessions, /test-centers fallback list, /exam-reservations.
+- VERIFIED LIVE POST: /temporary-seats hold created (id 3831346, numeric session 1555225 resolved from encrypted ID). Full /exam-reservations POST NOT executed (needs user consent — may consume credits/money).
+- KEY FINDING: SVP API hides real test center identity pre-reservation — sessions/details only return `{city}` (e.g. "Rajshahi Center" synthesized label). Real names + test_center_id appear ONLY in exam_reservations (verified: "Pabna Technical Training Centre" #201, exam passed). This is upstream SVP behavior, NOT an app bug.
+- UI fixes from live testing: encrypted session IDs (contain "--") now display as "Session N" instead of raw blob (TestCenterAvailablePage + BookingPage); ReservationsPage "Center ID" falls back to test_center_id (#201 now shows).
+- /user-balance returns 404 from SVP upstream (both proxy fallback routes) — UI handles gracefully (defaults to Paid Booking mode).
+
 ## Credentials
 - Access ADMIN: admin@example.com / 12345678 (see /app/memory/test_credentials.md)
 - SVP credentials: NOT provided by user — live SVP login → OTP → real exam data flow remains unverified.

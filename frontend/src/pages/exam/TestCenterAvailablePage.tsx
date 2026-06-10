@@ -419,8 +419,9 @@ export default function TestCenterAvailablePage() {
               disabled={!centerKey || !sessionOptions.length}
             >
               <option value="">Select session</option>
-              {sessionOptions.map((s) => {
+              {sessionOptions.map((s, idx) => {
                 const id = getSessionId(s);
+                const isEncrypted = id.includes("--");
                 const displayId = getSessionCenterDisplayId(s);
                 const displayIdType = getSessionCenterDisplayIdType(s);
                 const idLabel = displayId ? ` (${displayIdType === "site" ? "Site" : "Center"} #${displayId})` : "";
@@ -435,7 +436,7 @@ export default function TestCenterAvailablePage() {
                 const time = s?.test_time || s?.start_at_time || "";
                 return (
                   <option key={id} value={id}>
-                    #{id} — {name}{idLabel} {time && `• ${time}`}
+                    {isEncrypted ? `Session ${idx + 1}` : `#${id}`} — {name}{idLabel} {time && `• ${time}`}
                   </option>
                 );
               })}
@@ -459,7 +460,7 @@ export default function TestCenterAvailablePage() {
               <dt className="text-muted-foreground">Test Center ID</dt>
               <dd className="text-foreground">{getSessionTestCenterId(selectedSession) || getSessionSiteId(selectedSession) || "—"}</dd>
               <dt className="text-muted-foreground">Exam Session ID</dt>
-              <dd className="font-semibold text-foreground">{sessionId}</dd>
+              <dd className="break-all font-semibold text-foreground">{sessionId}</dd>
             </dl>
             <Link
               to={`/exam/booking?occupationId=${occupationId}&categoryId=${categoryId}&siteCity=${encodeURIComponent(

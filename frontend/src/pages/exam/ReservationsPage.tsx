@@ -34,7 +34,15 @@ function getDate(item: any) {
   return item?.exam_session?.test_date || item?.exam_session?.start_at_in_browser_time_zone || value(item, ["exam_date", "scheduled_at", "date", "examDay", "test_date", "start_at_in_browser_time_zone", "start_at"]) || "";
 }
 function getCenterName(item: any) { return item?.exam_session?.test_center?.name || value(item, ["test_center_name", "name", "site_city", "city"]) || `Site #${getSiteId(item) || "-"}`; }
-function getSiteId(item: any) { return item?.exam_session?.test_center?.site_id || value(item, ["site_id"]) || ""; }
+function getSiteId(item: any) {
+  return (
+    item?.exam_session?.test_center?.site_id ||
+    value(item, ["site_id"]) ||
+    item?.exam_session?.test_center?.test_center_id ||
+    value(item, ["test_center_id"]) ||
+    ""
+  );
+}
 function getLanguageCode(item: any) { return value(item, ["language_code", "prometric_code", "code"]) || "-"; }
 function getSessionId(item: any) { return value(item, ["exam_session_id"]) || item?.exam_session?.id || ""; }
 function canReschedule(item: any) { return Boolean(item?.can_be_rescheduled); }
@@ -188,7 +196,7 @@ export default function ReservationsPage() {
                   <div><span>Occupation</span><strong>{item?.occupation?.english_name || item?.occupation?.name || getOccupationId(item) || "-"}</strong></div>
                   <div><span>Session ID</span><strong>{getSessionId(item) || "-"}</strong></div>
                   <div><span>Language</span><strong>{getLanguageCode(item)}</strong></div>
-                  <div><span>Site ID</span><strong>{getSiteId(item) || "-"}</strong></div>
+                  <div><span>Center ID</span><strong>{getSiteId(item) ? `#${getSiteId(item)}` : "-"}</strong></div>
                   <div><span>Methodology</span><strong>{getMethodology(item) || "-"}</strong></div>
                 </div>
                 <button className="primary-btn" type="button" onClick={() => startReschedule(item)}
