@@ -580,6 +580,68 @@ async function buildTestCentersFromSessions(listData: any, svpToken: string) {
   return { test_centers: centers, data: centers };
 }
 
+// ── Center directory cache (full site_id → name map) ────────────────
+let centerDirectoryCache: {
+  fetchedAt: number;
+  centers: Array<{ site_id: number | null; test_center_id: number | null; name: string; city: string | null }>;
+} | null = null;
+const CENTER_DIRECTORY_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+async function buildCenterDirectory(svpToken: string) {
+  const map = new Map<string, { site_id: number | null; test_center_id: number | null; name: string; city: string | null }>();
+
+  const upsert = (row: { site_id: number | null; test_center_id: number | null; name: string; city: string | null }) => {
+    if (!row.name) return;
+    const key = String(row.site_id || row.test_center_id || row.name);
+    if (!map.has(key)) map.set(key, row);
+  };
+
+  // 1. Pull all pages from SVP /test_centers
+  try {
+    for (let page = 1; page <= 20; page++) {
+      const data: any = await svpFetch(
+        `/api/v1/individual_labor_space/test_centers?per_page=200&page=${page}`,
+        { method: "GET", token: svpToken }
+      );
+      const arr = pickFirstArray(data);
+      if (!arr.length) break;
+      arr.forEach((tc: any) => {
+        upsert({
+          site_id: toPositiveNumber(tc?.site_id),
+          test_center_id: toPositiveNumber(tc?.test_center_id ?? tc?.id),
+          name: normalizeString(tc?.name || tc?.test_center_name) || "",
+          city: normalizeString(tc?.city || tc?.test_center_city),
+        });
+      });
+      if (arr.length < 200) break;
+    }
+  } catch {
+    // SVP list endpoint may not exist; fall through to other sources
+  }
+
+  // 2. Static fallback list
+  Object.values(STATIC_TEST_CENTERS).forEach((c) =>
+    upsert({ site_id: c.site_id, test_center_id: c.site_id, name: c.name, city: c.city })
+  );
+
+  // 3. Supabase DB
+  try {
+    const { data } = await getSupabase().from("test_centers").select("site_id,name,city");
+    data?.forEach((row: any) =>
+      upsert({
+        site_id: toPositiveNumber(row?.site_id),
+        test_center_id: toPositiveNumber(row?.site_id),
+        name: normalizeString(row?.name) || "",
+        city: normalizeString(row?.city),
+      })
+    );
+  } catch {
+    // DB might not have the table populated; ignore
+  }
+
+  return [...map.values()];
+}
+
 // ── Main handler ────────────────────────────────────────────────────
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
