@@ -852,6 +852,7 @@ Deno.serve(async (req) => {
         listData.exam_sessions = enriched.map(normalizeSessionShape);
       }
 
+      harvestFromPayload(listData).catch(() => {});
       return json(listData);
     }
 
