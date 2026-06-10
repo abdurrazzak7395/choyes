@@ -1,6 +1,8 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { api, getSession, getBackendUrl } from "@/lib/api";
+import { resolveCenterDisplayName } from "@/lib/real-test-centers";
+import { ensureCenterDirectory, getDirectoryCenterName } from "@/lib/center-directory";
 
 function pickArray(payload: any): any[] {
   if (Array.isArray(payload)) return payload;
@@ -33,15 +35,38 @@ function getStatus(item: any) { return value(item, ["reservation_status", "statu
 function getDate(item: any) {
   return item?.exam_session?.test_date || item?.exam_session?.start_at_in_browser_time_zone || value(item, ["exam_date", "scheduled_at", "date", "examDay", "test_date", "start_at_in_browser_time_zone", "start_at"]) || "";
 }
-function getCenterName(item: any) { return item?.exam_session?.test_center?.name || value(item, ["test_center_name", "name", "site_city", "city"]) || `Site #${getSiteId(item) || "-"}`; }
+function getTestCenterId(item: any) {
+  return (
+    item?.exam_session?.test_center?.test_center_id ||
+    item?.exam_session?.test_center?.id ||
+    value(item, ["test_center_id"]) ||
+    ""
+  );
+}
 function getSiteId(item: any) {
   return (
     item?.exam_session?.test_center?.site_id ||
     value(item, ["site_id"]) ||
-    item?.exam_session?.test_center?.test_center_id ||
-    value(item, ["test_center_id"]) ||
+    getTestCenterId(item) ||
     ""
   );
+}
+function getCityName(item: any) {
+  return (
+    item?.exam_session?.test_center?.city ||
+    item?.exam_session?.test_center?.test_center_city ||
+    value(item, ["site_city", "city"]) ||
+    ""
+  );
+}
+function getCenterName(item: any) {
+  const apiName = item?.exam_session?.test_center?.name || value(item, ["test_center_name", "name"]) || "";
+  const city = getCityName(item);
+  const siteId = getSiteId(item);
+  const tcId = getTestCenterId(item);
+  const directoryName = getDirectoryCenterName(siteId, tcId);
+  return resolveCenterDisplayName(apiName || directoryName, city, siteId, tcId) ||
+    (city ? String(city) : `Site #${siteId || "-"}`);
 }
 function getLanguageCode(item: any) { return value(item, ["language_code", "prometric_code", "code"]) || "-"; }
 function getSessionId(item: any) { return value(item, ["exam_session_id"]) || item?.exam_session?.id || ""; }
@@ -70,7 +95,7 @@ export default function ReservationsPage() {
     finally { setLoading(false); }
   }
 
-  useEffect(() => { loadReservations(); }, []);
+  useEffect(() => { loadReservations(); ensureCenterDirectory().catch(() => {}); }, []);
 
   async function startReschedule(item: any) {
     const reservationId = getReservationId(item);
@@ -196,7 +221,8 @@ export default function ReservationsPage() {
                   <div><span>Occupation</span><strong>{item?.occupation?.english_name || item?.occupation?.name || getOccupationId(item) || "-"}</strong></div>
                   <div><span>Session ID</span><strong>{getSessionId(item) || "-"}</strong></div>
                   <div><span>Language</span><strong>{getLanguageCode(item)}</strong></div>
-                  <div><span>Center ID</span><strong>{getSiteId(item) ? `#${getSiteId(item)}` : "-"}</strong></div>
+                  <div><span>Center ID</span><strong>{getSiteId(item) ? `#${getSiteId(item)}` : (getTestCenterId(item) ? `#${getTestCenterId(item)}` : "-")}</strong></div>
+                  <div><span>City</span><strong>{getCityName(item) || "-"}</strong></div>
                   <div><span>Methodology</span><strong>{getMethodology(item) || "-"}</strong></div>
                 </div>
                 <button className="primary-btn" type="button" onClick={() => startReschedule(item)}

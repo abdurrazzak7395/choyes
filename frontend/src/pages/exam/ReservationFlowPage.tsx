@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/lib/api";
 import { pickArray, normalizeOccupation } from "@/lib/booking-utils";
+import { resolveCenterDisplayName } from "@/lib/real-test-centers";
+import { ensureCenterDirectory, getDirectoryCenterName } from "@/lib/center-directory";
 
 export default function ReservationFlowPage() {
   // Step 1 — Hold (temporary_seats)
@@ -43,6 +45,7 @@ export default function ReservationFlowPage() {
 
   // Load occupations once
   useEffect(() => {
+    ensureCenterDirectory().catch(() => {});
     (async () => {
       setLoadingOccupations(true);
       try {
@@ -222,14 +225,26 @@ export default function ReservationFlowPage() {
             {realExamSessionId && (
               <div className="rounded-md border bg-muted/40 p-3 text-sm space-y-1">
                 <div><span className="font-medium">Real exam_session_id:</span> {realExamSessionId}</div>
-                {testCenter && (
-                  <>
-                    <div><span className="font-medium">Test Center ID:</span> {testCenter.id ?? testCenter.test_center_id ?? "—"}</div>
-                    <div><span className="font-medium">Test Center Name:</span> {testCenter.name ?? testCenter.test_center_name ?? "—"}</div>
-                    <div><span className="font-medium">City:</span> {testCenter.city ?? testCenter.test_center_city ?? "—"}</div>
-                    {testCenter.address && <div><span className="font-medium">Address:</span> {testCenter.address}</div>}
-                  </>
-                )}
+                {testCenter && (() => {
+                  const tcId = testCenter.id ?? testCenter.test_center_id ?? null;
+                  const siteId = testCenter.site_id ?? null;
+                  const city = testCenter.city ?? testCenter.test_center_city ?? null;
+                  const rawName = testCenter.name ?? testCenter.test_center_name ?? null;
+                  const resolvedName = resolveCenterDisplayName(
+                    rawName || getDirectoryCenterName(siteId, tcId),
+                    city,
+                    siteId,
+                    tcId,
+                  );
+                  return (
+                    <>
+                      <div><span className="font-medium">Test Center ID:</span> {tcId ?? "—"}</div>
+                      <div><span className="font-medium">Test Center Name:</span> {resolvedName || "—"}</div>
+                      <div><span className="font-medium">City:</span> {city ?? "—"}</div>
+                      {testCenter.address && <div><span className="font-medium">Address:</span> {testCenter.address}</div>}
+                    </>
+                  );
+                })()}
               </div>
             )}
             {holdResp && (
@@ -285,20 +300,34 @@ export default function ReservationFlowPage() {
             </Button>
             {reservationError && <p className="text-sm text-destructive">{reservationError}</p>}
 
-            {reservationResp && (
-              <div className="space-y-2">
-                <div className="rounded-md border bg-muted/40 p-3 text-sm">
-                  <div><span className="font-medium">Reservation ID:</span> {reservationResp?.id ?? "—"}</div>
-                  <div><span className="font-medium">exam_session_id:</span> {reservationResp?.exam_session_id ?? "—"}</div>
-                  <div><span className="font-medium">Status:</span> {reservationResp?.reservation_status ?? "—"}</div>
-                  <div><span className="font-medium">Test Center:</span> {reservationResp?.test_center?.test_center_name ?? reservationResp?.exam_session?.test_center?.name ?? "—"}</div>
+            {reservationResp && (() => {
+              const tc = reservationResp?.test_center || reservationResp?.exam_session?.test_center || {};
+              const tcId = tc.test_center_id ?? tc.id ?? null;
+              const siteId = tc.site_id ?? null;
+              const city = tc.city ?? tc.test_center_city ?? null;
+              const rawName = tc.test_center_name ?? tc.name ?? null;
+              const resolvedName = resolveCenterDisplayName(
+                rawName || getDirectoryCenterName(siteId, tcId),
+                city,
+                siteId,
+                tcId,
+              );
+              return (
+                <div className="space-y-2">
+                  <div className="rounded-md border bg-muted/40 p-3 text-sm">
+                    <div><span className="font-medium">Reservation ID:</span> {reservationResp?.id ?? "—"}</div>
+                    <div><span className="font-medium">exam_session_id:</span> {reservationResp?.exam_session_id ?? "—"}</div>
+                    <div><span className="font-medium">Status:</span> {reservationResp?.reservation_status ?? "—"}</div>
+                    <div><span className="font-medium">Test Center:</span> {resolvedName || "—"}{tcId ? ` (#${tcId})` : ""}</div>
+                    <div><span className="font-medium">City:</span> {city ?? "—"}</div>
+                  </div>
+                  <details className="text-xs">
+                    <summary className="cursor-pointer text-muted-foreground">Raw reservation response</summary>
+                    <pre className="mt-2 max-h-96 overflow-auto rounded bg-muted p-2">{JSON.stringify(reservationResp, null, 2)}</pre>
+                  </details>
                 </div>
-                <details className="text-xs">
-                  <summary className="cursor-pointer text-muted-foreground">Raw reservation response</summary>
-                  <pre className="mt-2 max-h-96 overflow-auto rounded bg-muted p-2">{JSON.stringify(reservationResp, null, 2)}</pre>
-                </details>
-              </div>
-            )}
+              );
+            })()}
           </CardContent>
         </Card>
       </div>
