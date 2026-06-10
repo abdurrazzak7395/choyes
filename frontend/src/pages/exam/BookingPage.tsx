@@ -11,6 +11,7 @@ import {
   detectBookingMode,
 } from "@/lib/booking-utils";
 import { getRealTestCenterNameById, resolveCenterDisplayName } from "@/lib/real-test-centers";
+import { ensureCenterDirectory, getDirectoryCenterName } from "@/lib/center-directory";
 import { CityCentersPanel } from "@/components/CityCentersPanel";
 import { toast } from "sonner";
 
@@ -80,11 +81,13 @@ export default function BookingPage() {
   );
   const centerOptions = useMemo(() => {
     const options = buildCenterOptions(cityFilteredSessions);
-    // Enrich with real test center names from the map + verified real list
+    // Enrich with real test center names from the map + verified real list + directory
     return options.map((opt) => ({
       ...opt,
       name: resolveCenterDisplayName(
-        testCenterMap.get(opt.siteId) || opt.name,
+        testCenterMap.get(opt.siteId) ||
+          getDirectoryCenterName(opt.siteId, opt.displayId) ||
+          opt.name,
         opt.city,
         opt.displayId,
         opt.siteId
@@ -145,6 +148,9 @@ export default function BookingPage() {
       finally { setLoadingOccupations(false); }
     })();
   }, []);
+
+  // Preload the full SVP center directory once for accurate name resolution
+  useEffect(() => { ensureCenterDirectory().catch(() => {}); }, []);
 
   useEffect(() => {
     if (searchParams.get("occupationId")) setSelectedOccupationId(String(searchParams.get("occupationId")));
@@ -862,7 +868,9 @@ export default function BookingPage() {
                 const rawSessionId = String(getSessionId(item));
                 const sessionLabel = rawSessionId.includes("--") ? `Session ${idx + 1}` : `Session #${rawSessionId}`;
                 const realName = resolveCenterDisplayName(
-                  testCenterMap.get(String(sid)) || getSessionCenterName(item),
+                  testCenterMap.get(String(sid)) ||
+                    getDirectoryCenterName(sid, getSessionTestCenterId(item)) ||
+                    getSessionCenterName(item),
                   getSessionSiteCity(item),
                   getSessionTestCenterId(item),
                   sid

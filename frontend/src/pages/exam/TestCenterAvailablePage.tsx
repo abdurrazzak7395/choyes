@@ -21,6 +21,7 @@ import {
   getSessionTestCenterId,
 } from "@/lib/booking-utils";
 import { getRealTestCenterNameById, resolveCenterDisplayName } from "@/lib/real-test-centers";
+import { ensureCenterDirectory, getDirectoryCenterName } from "@/lib/center-directory";
 import { CityCentersPanel } from "@/components/CityCentersPanel";
 
 /**
@@ -86,7 +87,9 @@ export default function TestCenterAvailablePage() {
     return opts.map((o) => ({
       ...o,
       name: resolveCenterDisplayName(
-        centerNameMap.get(o.siteId) || o.name,
+        centerNameMap.get(o.siteId) ||
+          getDirectoryCenterName(o.siteId, o.displayId) ||
+          o.name,
         o.city,
         o.displayId,
         o.siteId
@@ -131,6 +134,9 @@ export default function TestCenterAvailablePage() {
       }
     })();
   }, []);
+
+  // Preload the full SVP center directory once for accurate name resolution
+  useEffect(() => { ensureCenterDirectory().catch(() => {}); }, []);
 
   // 2. Load available dates when occupation changes
   useEffect(() => {
