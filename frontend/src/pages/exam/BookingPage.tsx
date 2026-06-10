@@ -81,11 +81,13 @@ export default function BookingPage() {
   );
   const centerOptions = useMemo(() => {
     const options = buildCenterOptions(cityFilteredSessions);
-    // Enrich with real test center names from the map + verified real list
+    // Enrich with real test center names from the map + verified real list + directory
     return options.map((opt) => ({
       ...opt,
       name: resolveCenterDisplayName(
-        testCenterMap.get(opt.siteId) || opt.name,
+        testCenterMap.get(opt.siteId) ||
+          getDirectoryCenterName(opt.siteId, opt.displayId) ||
+          opt.name,
         opt.city,
         opt.displayId,
         opt.siteId
