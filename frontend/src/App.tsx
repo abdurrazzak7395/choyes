@@ -12,6 +12,7 @@ import OtpPage from "@/pages/auth/OtpPage";
 import DashboardPage from "@/pages/DashboardPage";
 import BookingPage from "@/pages/exam/BookingPage";
 import ReservationsPage from "@/pages/exam/ReservationsPage";
+import ReservationFlowPage from "@/pages/exam/ReservationFlowPage";
 import TestCenterAvailablePage from "@/pages/exam/TestCenterAvailablePage";
 import TestCenterBrowsePage from "@/pages/exam/TestCenterBrowsePage";
 import AccessLoginPage from "@/pages/access/AccessLoginPage";
