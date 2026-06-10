@@ -5,6 +5,8 @@ import {
   getRealTestCenterNameById,
   getCentersByCity,
   searchCenters,
+  isGenericCenterName,
+  resolveCenterDisplayName,
 } from "./real-test-centers";
 
 describe("real-test-centers lookup", () => {
@@ -37,5 +39,32 @@ describe("real-test-centers lookup", () => {
 
   it("returns undefined for unknown ids", () => {
     expect(getRealTestCenterNameById(9999)).toBeUndefined();
+  });
+
+  it("detects generic placeholder names", () => {
+    expect(isGenericCenterName(undefined)).toBe(true);
+    expect(isGenericCenterName("Unnamed")).toBe(true);
+    expect(isGenericCenterName("Unknown Center")).toBe(true);
+    expect(isGenericCenterName("Dhaka Center", "Dhaka")).toBe(true);
+    expect(isGenericCenterName("Dhaka Exam Center", "Dhaka")).toBe(true);
+    expect(isGenericCenterName("Dhaka (Site #17)", "Dhaka")).toBe(true);
+    expect(isGenericCenterName("Bangladesh Korea TTC Dhaka", "Dhaka")).toBe(false);
+    expect(isGenericCenterName("Rajshahi Technical Training Centre", "Rajshahi")).toBe(false);
+  });
+
+  it("resolves real display name from generic name via IDs", () => {
+    expect(resolveCenterDisplayName("Dhaka Exam Center", "Dhaka", 17)).toBe(
+      "Bangladesh Korea TTC Dhaka"
+    );
+    expect(resolveCenterDisplayName("Unknown Center", null, null, "54")).toBe(
+      "Rajshahi Technical Training Centre"
+    );
+    // keeps a real API-provided name untouched
+    expect(resolveCenterDisplayName("Some Real API Center", "Dhaka", 17)).toBe(
+      "Some Real API Center"
+    );
+    // falls back to original when no ID matches
+    expect(resolveCenterDisplayName("Khulna Center", "Khulna", 9999)).toBe("Khulna Center");
+    expect(resolveCenterDisplayName(undefined, null)).toBe("Unknown Center");
   });
 });

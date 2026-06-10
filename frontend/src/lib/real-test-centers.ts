@@ -91,3 +91,31 @@ export function getRealTestCenterNameById(id: number | string): string | undefin
   if (!Number.isFinite(num) || num <= 0) return undefined;
   return getCenterBySiteId(num)?.name || getCenterByTestCenterId(num)?.name;
 }
+
+// Detects placeholder names produced by fallbacks, e.g. "Unknown Center",
+// "Dhaka Center", "Dhaka Exam Center", "Dhaka (Site #17)", "Unnamed".
+export function isGenericCenterName(name?: string | null, city?: string | null): boolean {
+  if (!name) return true;
+  const n = name.trim().toLowerCase();
+  if (!n || n === "unnamed" || n === "unknown center" || n === "center" || n === "centre") return true;
+  if (/\((site|center)\s*#\d+\)/.test(n)) return true;
+  const c = (city || "").trim().toLowerCase();
+  if (c && (n === c || n === `${c} center` || n === `${c} centre` || n === `${c} exam center`)) return true;
+  return false;
+}
+
+// Returns the best display name for a test center: keeps a real API name,
+// otherwise resolves against the verified real test center list by any ID.
+export function resolveCenterDisplayName(
+  currentName: string | null | undefined,
+  city: string | null | undefined,
+  ...ids: Array<number | string | null | undefined>
+): string {
+  if (currentName && !isGenericCenterName(currentName, city)) return currentName;
+  for (const id of ids) {
+    if (id === null || id === undefined || id === "") continue;
+    const real = getRealTestCenterNameById(id);
+    if (real) return real;
+  }
+  return currentName || "Unknown Center";
+}

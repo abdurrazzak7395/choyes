@@ -19,7 +19,7 @@ import {
   getSessionSiteId,
   getSessionTestCenterId,
 } from "@/lib/booking-utils";
-import { getRealTestCenterNameById } from "@/lib/real-test-centers";
+import { getRealTestCenterNameById, resolveCenterDisplayName } from "@/lib/real-test-centers";
 
 /**
  * TEST CENTER AVAILABLE NEW
@@ -329,6 +329,7 @@ export default function TestCenterAvailablePage() {
               1. Occupation {loadingOcc && <span className="text-muted-foreground">(loading…)</span>}
             </label>
             <select
+              data-testid="tca-occupation-select"
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               value={occupationId}
               onChange={(e) => setOccupationId(e.target.value)}
@@ -349,6 +350,7 @@ export default function TestCenterAvailablePage() {
               2. City {loadingDates && <span className="text-muted-foreground">(loading…)</span>}
             </label>
             <select
+              data-testid="tca-city-select"
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               value={city}
               onChange={(e) => setCity(e.target.value)}
@@ -388,6 +390,7 @@ export default function TestCenterAvailablePage() {
               {loadingSessions && <span className="text-muted-foreground">(loading…)</span>}
             </label>
             <select
+              data-testid="tca-center-select"
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               value={centerKey}
               onChange={(e) => setCenterKey(e.target.value)}
@@ -409,6 +412,7 @@ export default function TestCenterAvailablePage() {
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-foreground">5. Exam Session</label>
             <select
+              data-testid="tca-session-select"
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               value={sessionId}
               onChange={(e) => setSessionId(e.target.value)}
@@ -420,11 +424,14 @@ export default function TestCenterAvailablePage() {
                 const displayId = getSessionCenterDisplayId(s);
                 const displayIdType = getSessionCenterDisplayIdType(s);
                 const idLabel = displayId ? ` (${displayIdType === "site" ? "Site" : "Center"} #${displayId})` : "";
-                const name =
+                const name = resolveCenterDisplayName(
                   centerNameMap.get(String(getCenterKey(s))) ||
-                  s?.test_center?.name ||
-                  s?.test_center_name ||
-                  "Center";
+                    s?.test_center?.name ||
+                    s?.test_center_name,
+                  getSessionSiteCity(s),
+                  getSessionTestCenterId(s),
+                  getSessionSiteId(s)
+                );
                 const time = s?.test_time || s?.start_at_time || "";
                 return (
                   <option key={id} value={id}>

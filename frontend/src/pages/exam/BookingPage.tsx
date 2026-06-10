@@ -10,7 +10,7 @@ import {
   buildCityOptions, buildDateOptions, buildCalendarDays, formatDateLabel,
   detectBookingMode,
 } from "@/lib/booking-utils";
-import { getRealTestCenterNameById } from "@/lib/real-test-centers";
+import { getRealTestCenterNameById, resolveCenterDisplayName } from "@/lib/real-test-centers";
 
 
 
@@ -67,10 +67,15 @@ export default function BookingPage() {
   );
   const centerOptions = useMemo(() => {
     const options = buildCenterOptions(cityFilteredSessions);
-    // Enrich with real test center names from the map
+    // Enrich with real test center names from the map + verified real list
     return options.map((opt) => ({
       ...opt,
-      name: testCenterMap.get(opt.siteId) || opt.name,
+      name: resolveCenterDisplayName(
+        testCenterMap.get(opt.siteId) || opt.name,
+        opt.city,
+        opt.displayId,
+        opt.siteId
+      ),
     }));
   }, [cityFilteredSessions, testCenterMap]);
   const filteredSessions = useMemo(
@@ -724,12 +729,15 @@ export default function BookingPage() {
             <span>Exam Session *</span>
             <select value={sessionId} onChange={(e) => setSessionId(e.target.value)} disabled={!filteredSessions.length}>
               <option value="">{loadingSessions ? "Loading sessions..." : "Select session"}</option>
-              {filteredSessions.map((item, idx) => {
-                const displayId = getSessionCenterDisplayId(item);
-                const displayIdType = getSessionCenterDisplayIdType(item);
-                const idLabel = displayId ? ` (${displayIdType === "site" ? "Site" : "Center"} #${displayId})` : "";
+              {filteredSessions.map((item) => {
                 const sid = getSessionSiteId(item);
-                const realName = testCenterMap.get(String(sid)) || getSessionCenterName(item);
+                const idLabel = sid ? ` (Site #${sid})` : "";
+                const realName = resolveCenterDisplayName(
+                  testCenterMap.get(String(sid)) || getSessionCenterName(item),
+                  getSessionSiteCity(item),
+                  getSessionTestCenterId(item),
+                  sid
+                );
                 const seats = item?.available_seats ?? item?.seats_available ?? item?.remaining_seats ?? null;
                 const rawTime =
                   item?.start_time || item?.start_at_time || item?.exam_time ||
@@ -744,7 +752,7 @@ export default function BookingPage() {
                 }
                 return (
                   <option key={getSessionId(item)} value={getSessionId(item)}>
-                    {realName}{idLabel}{timeLabel ? ` | ${timeLabel}` : ` | Session ${idx + 1}`}{seats !== null && seats !== undefined ? ` | Seats: ${seats}` : ""}
+                    {realName}{idLabel} | Session #{getSessionId(item)}{timeLabel ? ` | ${timeLabel}` : ""}{seats !== null && seats !== undefined ? ` | Seats: ${seats}` : ""}
                   </option>
                 );
               })}

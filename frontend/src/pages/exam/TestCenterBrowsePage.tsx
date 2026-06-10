@@ -7,6 +7,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { resolveCenterDisplayName } from "@/lib/real-test-centers";
 
 interface TestCenter {
   id: number;
@@ -204,6 +205,7 @@ export default function TestCenterBrowsePage() {
                     Date {loadingCenters && <span className="text-xs text-slate-500">(loading...)</span>}
                   </label>
                   <select
+                    data-testid="browse-date-select"
                     value={selectedDate}
                     onChange={(e) => setSelectedDate(e.target.value)}
                     disabled={loadingCenters || availableDates.length === 0}
@@ -244,23 +246,36 @@ export default function TestCenterBrowsePage() {
                   <p className="text-slate-500 text-sm">No centers found. Select a city and date.</p>
                 ) : (
                   <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {testCenters.map((center) => (
-                      <button
-                        key={center.id}
-                        onClick={() => setSelectedCenterId(center.id)}
-                        className={`w-full text-left px-3 py-2 rounded-md transition ${
-                          selectedCenterId === center.id
-                            ? "bg-blue-500 text-white font-medium"
-                            : "bg-slate-100 text-slate-900 hover:bg-slate-200"
-                        }`}
-                      >
-                        <div className="font-semibold text-sm">{center.name || "Unnamed"}</div>
-                        <div className="text-xs opacity-75">ID: {center.id}</div>
-                        {center.site_id && (
-                          <div className="text-xs opacity-75">Site: {center.site_id}</div>
-                        )}
-                      </button>
-                    ))}
+                    {testCenters.map((center) => {
+                      const realName = resolveCenterDisplayName(
+                        center.name,
+                        center.city,
+                        center.test_center_id,
+                        center.site_id,
+                        center.id
+                      );
+                      const displayId = center.test_center_id || center.site_id || center.id;
+                      return (
+                        <button
+                          key={center.id}
+                          data-testid={`center-item-${center.id}`}
+                          onClick={() => setSelectedCenterId(center.id)}
+                          className={`w-full text-left px-3 py-2 rounded-md transition ${
+                            selectedCenterId === center.id
+                              ? "bg-blue-500 text-white font-medium"
+                              : "bg-slate-100 text-slate-900 hover:bg-slate-200"
+                          }`}
+                        >
+                          <div className="font-semibold text-sm">
+                            {realName} <span className="opacity-75">(#{displayId})</span>
+                          </div>
+                          <div className="text-xs opacity-75">Center ID: {displayId}</div>
+                          {center.site_id && (
+                            <div className="text-xs opacity-75">Site: {center.site_id}</div>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>
@@ -277,11 +292,20 @@ export default function TestCenterBrowsePage() {
                 {loadingDetail ? (
                   <div className="text-slate-500 text-sm">Loading details...</div>
                 ) : selectedCenterDetail ? (
-                  <div className="space-y-3">
+                  <div className="space-y-3" data-testid="center-detail">
                     <div>
                       <span className="text-xs font-semibold text-slate-500 uppercase">Name</span>
-                      <p className="text-sm font-medium text-slate-900">
-                        {selectedCenterDetail.name || "N/A"}
+                      <p className="text-sm font-medium text-slate-900" data-testid="center-detail-name">
+                        {resolveCenterDisplayName(
+                          selectedCenterDetail.name,
+                          selectedCenterDetail.city,
+                          selectedCenterDetail.test_center_id,
+                          selectedCenterDetail.site_id,
+                          selectedCenterDetail.id
+                        )}{" "}
+                        <span className="text-slate-500">
+                          (#{selectedCenterDetail.test_center_id || selectedCenterDetail.site_id || selectedCenterDetail.id})
+                        </span>
                       </p>
                     </div>
 
@@ -345,6 +369,7 @@ export default function TestCenterBrowsePage() {
 
                     <div className="pt-4 border-t">
                       <Button
+                        data-testid="book-exam-here-btn"
                         className="w-full bg-blue-600 hover:bg-blue-700 text-white"
                         onClick={() => {
                           // Navigate to booking page with center pre-selected

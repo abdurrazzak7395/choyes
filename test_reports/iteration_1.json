@@ -1,0 +1,39 @@
+{
+  "summary": "Comprehensive frontend testing of Exam Booking & Access Control system. Access Control flows (login, dashboard, /access/accounts, /access/users, /access/agencies, logout, wrong-password error) all PASS. SVP exam routes (/exam/test-center-browse, /exam/test-center-available, /exam/booking, /dashboard) are properly protected and redirect when no accessToken present. Exam pages render gracefully with a fake JWT — 'Invalid signature' error alert shown without any blank screen/crash, and the new data-testids (browse-date-select, tca-occupation-select, browse-city-select) are present. Live Supabase edge functions verified via curl (access-auth/login → 200, svp-proxy/test-centers no auth → 401, svp-auth/login empty body → 400). All 21 vitest tests across 6 suites still pass (incl. the integration tests proving real test-center name resolution via /test-centers/:id).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Sidebar (exam pages)", "issues": ["User avatar shows generic placeholder text 'User / Labor' when accessToken sub is 'test' — minor cosmetic only, occurs only with fake-JWT diagnostic flow, not real users"]}
+    ]
+  },
+  "test_report_links": [
+    "/app/frontend/src/lib/real-test-centers.test.ts",
+    "/app/frontend/src/lib/booking-utils.test.ts",
+    "/app/frontend/src/pages/exam/BookingPage.integration.test.tsx",
+    "/app/frontend/src/pages/exam/BookingPage.fallback.integration.test.tsx",
+    "/app/frontend/src/pages/exam/TestCenterAvailablePage.integration.test.tsx"
+  ],
+  "action_items": [
+    "No blocking issues. Optional: add React Router v7 future flags (v7_startTransition, v7_relativeSplatPath) to silence console warnings.",
+    "Real SVP exam credentials still needed from user to validate the live SVP login → OTP → /dashboard happy-path with real test-center names (resolver logic is already covered by mocked vitest integration tests)."
+  ],
+  "critical_code_review_comments": [
+    "real-test-centers.ts resolveCenterDisplayName() correctly de-duplicates name + Site # suffix and is unit-tested.",
+    "AccessProtectedRoute gates SVP /auth/login behind an Access role USER session — visiting /auth/login as ADMIN or anonymous redirects to /access/login (expected per problem statement note).",
+    "All exam page Select components expose data-testid attributes (browse-city-select, browse-date-select, tca-occupation-select) — good for testability.",
+    "Edge function error responses use clean JSON payloads ({message:'Invalid signature'}, {error:'login and password required'}) which UI surfaces as Alert banners — graceful failure behaviour confirmed."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (edge functions: 3/3)", "frontend": "100% (14/14 UI checks + 21/21 vitest)"},
+  "test_credentials": "Access ADMIN admin@example.com / 12345678 (used and confirmed working). SVP credentials unavailable as documented.",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "App URL: https://github-docs-view.preview.emergentagent.com. Access Control fully functional with admin@example.com/12345678. SVP exam pages can only be exercised end-to-end with real SVP credentials (svp-international.pacc.sa); for UI-only checks, inject a fake JWT into localStorage['accessToken'] (header.payload.signature, payload exp must be future) and visit /exam/test-center-browse or /exam/test-center-available — pages render with an 'Invalid signature' graceful alert and the data-testids browse-city-select/browse-date-select/tca-occupation-select are present. Note: /auth/login (SVP login) is wrapped by AccessProtectedRoute requiring USER role, so it cannot be reached as ADMIN; redirects to /access/login. Real test-center name resolution is fully covered by vitest integration tests (BookingPage.integration.test.tsx, TestCenterAvailablePage.integration.test.tsx) using mocked /test-centers/:id responses.",
+  "rca of the issue": "N/A — no defects encountered. Earlier reported test-centers UI display issue is resolved: resolveCenterDisplayName() in /app/frontend/src/lib/real-test-centers.ts now (a) detects generic placeholder names via isGenericCenterName(), (b) substitutes verified real BD center names by site_id/test_center_id, and (c) is consumed by TestCenterAvailablePage, TestCenterBrowsePage and BookingPage dropdowns. Verified by 21 passing vitest tests."
+}
