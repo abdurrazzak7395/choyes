@@ -33,12 +33,19 @@ SVP (svp-international.pacc.sa) exam booking system for Bangladesh test centers,
 - UI fixes from live testing: encrypted session IDs (contain "--") now display as "Session N" instead of raw blob (TestCenterAvailablePage + BookingPage); ReservationsPage "Center ID" falls back to test_center_id (#201 now shows).
 - /user-balance returns 404 from SVP upstream (both proxy fallback routes) — UI handles gracefully (defaults to Paid Booking mode).
 
+## PRE-BOOKING REAL CENTER NAMES + FULL BOOKING CONFIRM (June 10 2026, session 2)
+- NEW: `CityCentersPanel` component (/app/frontend/src/components/CityCentersPanel.tsx) — after occupation → city → date selection, shows "Real Test Centers in {city}" panel with verified real names + IDs, merged from Supabase test_centers DB (45 rows, ilike city match, junk IDs >= 100000 filtered) + static REAL_TEST_CENTERS. Wired into TestCenterAvailablePage (between date and center selects) and BookingPage (after Test Center field). data-testid: live-city-centers, city-center-{id}.
+- VERIFIED LIVE in browser: Rajshahi shows 5 real centers (Bogura #107, Chapainawabganj #168, Joypurhat #265, Pabna #201, Rajshahi #54) BEFORE booking.
+- FULL BOOKING CONFIRMED LIVE: hold POST → reservation POST /exam-reservations returned reservation id 4249720 (draft). Body: {exam_session_id: encrypted, occupation_id: 2279, methodology, language_code: "TLREE", site_id: null, site_city, hold_id}. Draft NOT finalized — SVP requires payment (test_price 50) within ~20 min (exam-constraints reservation_duration) or auto-discards; GET detail/list 404s the unpaid draft. NO money spent. payments-validate-pending → can_proceed:true.
+- BOOKING SYSTEM STATUS: works fully up to the payment gateway step (POST /payments would be next — requires real money).
+
 ## Credentials
 - Access ADMIN: admin@example.com / 12345678 (see /app/memory/test_credentials.md)
-- SVP credentials: NOT provided by user — live SVP login → OTP → real exam data flow remains unverified.
+- SVP: mdrahadulislamsvp55445@yopmail.com / aRrazzak90# — OTP via email each login (yopmail inbox CAPTCHA-gated; user pastes OTP).
 
 ## Backlog / Next
-- P0: Get real SVP credentials from user → verify live login → OTP → dashboard → booking with real test center names end-to-end.
-- P1: An Access USER-role account is needed to even reach /auth/login (create via admin panel) for E2E testing.
+- P0: Payment flow (POST /payments) to finalize reservations — requires real money + gateway; UI for paid bookings.
+- P1: An Access USER-role account for full browser login path (/access/login USER → /auth/login SVP).
 - P2: Optional React Router v7 future flags to silence console warnings.
 - P2: Decide fate of unused FastAPI backend (keep as health endpoint or migrate sensitive logic).
+- Idea: Seat Availability Alert — poll live available-dates/sessions and notify on new seats.

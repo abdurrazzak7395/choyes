@@ -20,6 +20,7 @@ import {
   getSessionTestCenterId,
 } from "@/lib/booking-utils";
 import { getRealTestCenterNameById, resolveCenterDisplayName } from "@/lib/real-test-centers";
+import { CityCentersPanel } from "@/components/CityCentersPanel";
 
 /**
  * TEST CENTER AVAILABLE NEW
@@ -382,6 +383,9 @@ export default function TestCenterAvailablePage() {
               ))}
             </select>
           </div>
+
+          {/* Live real test centers for selected city */}
+          {city && date && <CityCentersPanel city={city} />}
 
           {/* 4. Test Center */}
           <div className="space-y-1.5">

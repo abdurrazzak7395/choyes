@@ -11,6 +11,7 @@ import {
   detectBookingMode,
 } from "@/lib/booking-utils";
 import { getRealTestCenterNameById, resolveCenterDisplayName } from "@/lib/real-test-centers";
+import { CityCentersPanel } from "@/components/CityCentersPanel";
 
 
 
@@ -725,6 +726,7 @@ export default function BookingPage() {
               })}
             </select>
           </div>
+          {selectedCity && availableDate ? <CityCentersPanel city={selectedCity} /> : null}
           <div className="field-block">
             <span>Exam Session *</span>
             <select value={sessionId} onChange={(e) => setSessionId(e.target.value)} disabled={!filteredSessions.length}>
