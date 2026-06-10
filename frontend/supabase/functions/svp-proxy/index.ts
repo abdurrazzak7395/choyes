@@ -929,6 +929,14 @@ Deno.serve(async (req) => {
       const svpPath = typeof route.svpPath === "function" ? route.svpPath(match, query) : route.svpPath;
       const body = route.bodyForward ? await req.json().catch(() => ({})) : undefined;
       const data = await svpFetch(buildPath(svpPath, query), { method: route.method, token: svpToken, body });
+
+      // Harvest any test_center info from the response so the directory
+      // stays in sync with what SVP actually returns (e.g. on successful
+      // /exam_reservations POST the response includes the real center).
+      if (/exam[-_]reservations?|exam[-_]sessions?|test[-_]centers/.test(svpPath)) {
+        harvestFromPayload(data).catch(() => {});
+      }
+
       return json(data);
     }
 
