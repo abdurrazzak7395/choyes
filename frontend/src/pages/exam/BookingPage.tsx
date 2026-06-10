@@ -928,7 +928,6 @@ export default function BookingPage() {
           <div><span>Available Seats:</span> <strong>{loadingSeats ? "Loading..." : (liveAvailableSeats !== null ? liveAvailableSeats : (selectedSession ? (selectedSession.available_seats ?? selectedSession.seats_available ?? "-") : "-"))}</strong></div>
           <div><span>City:</span> <strong>{siteCity || selectedCity || "-"}</strong></div>
           <div><span>Site ID:</span> <strong>{siteId || "-"}</strong></div>
-          <div><span>Hold ID:</span> <strong>{holdId || "-"}</strong></div>
           <div><span>Exam Session ID:</span> <strong>{holdExamSessionId || sessionId || "-"}</strong></div>
           <div><span>Booking No:</span> <strong>{reservationId || "-"}</strong></div>
         </div>
