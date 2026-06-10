@@ -11,6 +11,7 @@ import {
   detectBookingMode,
 } from "@/lib/booking-utils";
 import { getRealTestCenterNameById, resolveCenterDisplayName } from "@/lib/real-test-centers";
+import { ensureCenterDirectory, getDirectoryCenterName } from "@/lib/center-directory";
 import { CityCentersPanel } from "@/components/CityCentersPanel";
 import { toast } from "sonner";
 
