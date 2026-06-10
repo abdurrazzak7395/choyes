@@ -54,6 +54,7 @@ export default function Topbar() {
             <Link to="/dashboard" className="rounded-lg px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted" onClick={() => setMobileOpen(false)}>Dashboard</Link>
             <Link to="/exam/reservations" className="rounded-lg px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted" onClick={() => setMobileOpen(false)}>My bookings</Link>
             <Link to="/exam/booking" className="rounded-lg px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted" onClick={() => setMobileOpen(false)}>New booking</Link>
+            <Link to="/exam/reservation-flow" className="rounded-lg px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted" onClick={() => setMobileOpen(false)}>Reservation Flow</Link>
           </nav>
         </div>
       )}

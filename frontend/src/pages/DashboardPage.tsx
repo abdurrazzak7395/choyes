@@ -56,6 +56,7 @@ export default function DashboardPage() {
           <Link className="nav-item nav-item--active" to="/dashboard">Account Dashboard</Link>
           <Link className="nav-item" to="/exam/reservations">My bookings</Link>
           <Link className="nav-item" to="/exam/booking">New booking</Link>
+          <Link className="nav-item" to="/exam/reservation-flow">Reservation Flow</Link>
         </nav>
       </aside>
 
