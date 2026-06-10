@@ -91,6 +91,30 @@ export default function ReservationFlowPage() {
     );
   }
 
+  function extractOccupationId(data: any): string {
+    const cand =
+      data?.occupation_id ??
+      data?.data?.occupation_id ??
+      data?.exam_session?.occupation_id ??
+      data?.exam_session?.occupation?.id ??
+      data?.data?.exam_session?.occupation_id ??
+      data?.data?.exam_session?.occupation?.id ??
+      (Array.isArray(data?.exam_sessions) ? data.exam_sessions[0]?.occupation_id ?? data.exam_sessions[0]?.occupation?.id : null) ??
+      (Array.isArray(data?.temporary_seats) ? data.temporary_seats[0]?.occupation_id : null);
+    return cand ? String(cand) : "";
+  }
+
+  function extractMethodology(data: any): string {
+    return (
+      data?.methodology ??
+      data?.data?.methodology ??
+      data?.exam_session?.methodology ??
+      data?.data?.exam_session?.methodology ??
+      (Array.isArray(data?.exam_sessions) ? data.exam_sessions[0]?.methodology : null) ??
+      ""
+    );
+  }
+
   async function handleCreateHold() {
     setHoldError(""); setHoldResp(null); setRealExamSessionId(null); setTestCenter(null);
     const token = encryptedSessionId.trim();
