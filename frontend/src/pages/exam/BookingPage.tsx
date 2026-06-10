@@ -149,6 +149,9 @@ export default function BookingPage() {
     })();
   }, []);
 
+  // Preload the full SVP center directory once for accurate name resolution
+  useEffect(() => { ensureCenterDirectory().catch(() => {}); }, []);
+
   useEffect(() => {
     if (searchParams.get("occupationId")) setSelectedOccupationId(String(searchParams.get("occupationId")));
     if (searchParams.get("categoryId")) setCategoryId(String(searchParams.get("categoryId")));
