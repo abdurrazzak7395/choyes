@@ -4,6 +4,6 @@
   "version": "0.0.0",
   "scripts": {
     "build": "cd frontend && npm install && npm run build",
-    "dev": "cd frontend && node_modules/.bin/vite --host :: --port 8080"
+    "dev": "cd frontend && (test -x node_modules/.bin/vite || npm install) && node_modules/.bin/vite --host :: --port 8080"
   }
 }
