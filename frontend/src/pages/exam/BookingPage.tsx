@@ -23,6 +23,9 @@ export default function BookingPage() {
   const [availableDateEntries, setAvailableDateEntries] = useState<{ city: string; date: string }[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
   const [testCenterMap, setTestCenterMap] = useState<Map<string, string>>(new Map());
+  // sessionId -> resolved test center id (from session detail fetches); used to
+  // strictly match sessions to the selected test center.
+  const [sessionCenterIds, setSessionCenterIds] = useState<Map<string, string>>(new Map());
   const [cityRealCenters, setCityRealCenters] = useState<CityCenterEntry[]>([]);
   const [selectedOccupationId, setSelectedOccupationId] = useState("");
   const [selectedCity, setSelectedCity] = useState("");
@@ -57,6 +60,9 @@ export default function BookingPage() {
   // Deep-link auto-fill guards: keep URL-provided city/date from being wiped by reset effects
   const urlPrefillOccupationRef = useRef(Boolean(searchParams.get("siteCity") || searchParams.get("examDate")));
   const urlPrefillCityRef = useRef(Boolean(searchParams.get("siteCity")));
+  // True while the Test Center selection was auto-picked (not chosen by the user) —
+  // lets us upgrade to a center with confirmed sessions once async resolution lands.
+  const centerAutoPickedRef = useRef(false);
 
   const selectedOccupation = useMemo(
     () => occupations.find((item) => String(item.id) === String(selectedOccupationId)) || null,
@@ -110,10 +116,40 @@ export default function BookingPage() {
     return enriched;
   }, [cityFilteredSessions, testCenterMap, cityRealCenters, selectedCity]);
   const isRealCenterSelection = String(selectedCenterId).startsWith("real-");
+  // Resolved center id for a session: own fields first, then async detail-resolved map.
+  const getResolvedSessionCenterId = (item: any): string => {
+    const own = getSessionTestCenterId(item) || getSessionSiteId(item);
+    if (own) return String(own);
+    return sessionCenterIds.get(String(getSessionId(item))) || "";
+  };
+  // STRICT mode: when a verified real center (real-{id}) is selected, only show
+  // sessions whose resolved test center id matches that center. Sessions whose
+  // center SVP hides (unresolvable pre-booking) are NOT shown.
   const filteredSessions = useMemo(
-    () => selectedCenterId && !isRealCenterSelection ? cityFilteredSessions.filter((item) => getCenterKey(item) === String(selectedCenterId)) : cityFilteredSessions,
-    [cityFilteredSessions, selectedCenterId, isRealCenterSelection]
+    () => {
+      if (!selectedCenterId) return cityFilteredSessions;
+      if (isRealCenterSelection) {
+        const realId = String(selectedCenterId).replace(/^real-/, "");
+        return cityFilteredSessions.filter((item) => {
+          const resolved = getResolvedSessionCenterId(item);
+          return resolved && String(resolved) === realId;
+        });
+      }
+      return cityFilteredSessions.filter((item) => getCenterKey(item) === String(selectedCenterId));
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [cityFilteredSessions, selectedCenterId, isRealCenterSelection, sessionCenterIds]
   );
+  // Count of confirmed sessions per resolved center id (for real-center option labels)
+  const realCenterSessionCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    cityFilteredSessions.forEach((item) => {
+      const id = getResolvedSessionCenterId(item);
+      if (id) counts.set(String(id), (counts.get(String(id)) || 0) + 1);
+    });
+    return counts;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cityFilteredSessions, sessionCenterIds]);
   const selectedSession = useMemo(
     () => filteredSessions.find((item) => String(getSessionId(item)) === String(sessionId)) || null,
     [filteredSessions, sessionId]
@@ -317,6 +353,10 @@ export default function BookingPage() {
       }));
 
       // 1b. Remaining: fall back to /exam-sessions/:id detail (embeds test_center).
+      //     Also capture the resolved test center id per session (sessionCenterIds)
+      //     so strict center -> session filtering can match.
+      const newIdMap = new Map(sessionCenterIds);
+      let idChanged = false;
       const stillMissing = needDetail.filter((s: any) => !newMap.has(String(getCenterKey(s))));
       const uniqueIds = Array.from(new Set(stillMissing.map((s: any) => String(getSessionId(s))).filter(Boolean)));
       await Promise.all(uniqueIds.map(async (id) => {
@@ -324,6 +364,11 @@ export default function BookingPage() {
           const detail: any = await api(`/exam-sessions/${encodeURIComponent(id)}?locale=en`);
           const node = detail?.exam_session || detail?.data?.exam_session || detail?.data || detail;
           const tc = node?.test_center;
+          const resolvedCenterId = tc?.test_center_id || tc?.id || tc?.site_id || node?.test_center_id || node?.site_id || "";
+          if (resolvedCenterId && !newIdMap.has(String(id))) {
+            newIdMap.set(String(id), String(resolvedCenterId));
+            idChanged = true;
+          }
           const name = tc?.name || tc?.test_center_name || node?.test_center_name;
           if (!name) return;
           const sess = sessions.find((s: any) => String(getSessionId(s)) === id);
@@ -360,6 +405,7 @@ export default function BookingPage() {
       }
 
       if (active && changed) setTestCenterMap(newMap);
+      if (active && idChanged) setSessionCenterIds(newIdMap);
     })();
     return () => { active = false; };
   }, [sessions]);
@@ -375,8 +421,33 @@ export default function BookingPage() {
   useEffect(() => {
     if (!centerOptions.length) { setSelectedCenterId(""); return; }
     const hasSelected = centerOptions.some((item) => String(item.siteId) === String(selectedCenterId));
-    if (!selectedCenterId || !hasSelected) setSelectedCenterId(String(centerOptions[0].siteId));
-  }, [centerOptions, selectedCenterId]);
+    const countFor = (opt: any) =>
+      String(opt.siteId).startsWith("real-")
+        ? (realCenterSessionCounts.get(String(opt.displayId)) || 0)
+        : 1;
+    if (hasSelected) {
+      // If the current selection was auto-picked (not user-chosen) and has no
+      // confirmed sessions, upgrade to a center that does once resolution lands.
+      if (centerAutoPickedRef.current) {
+        const current = centerOptions.find((item) => String(item.siteId) === String(selectedCenterId));
+        if (current && countFor(current) === 0) {
+          const better = centerOptions.find((item) => countFor(item) > 0);
+          if (better) setSelectedCenterId(String(better.siteId));
+        }
+      }
+      return;
+    }
+    // Deep-link prefill may carry a numeric site id while options use "real-{id}" keys
+    if (selectedCenterId && centerOptions.some((item) => String(item.siteId) === `real-${selectedCenterId}`)) {
+      centerAutoPickedRef.current = false; // explicit user intent via URL
+      setSelectedCenterId(`real-${selectedCenterId}`);
+      return;
+    }
+    // Prefer the first center with confirmed sessions (strict mode), else first option
+    const withSessions = centerOptions.find((item) => countFor(item) > 0);
+    centerAutoPickedRef.current = true;
+    setSelectedCenterId(String((withSessions || centerOptions[0]).siteId));
+  }, [centerOptions, selectedCenterId, realCenterSessionCounts]);
 
   useEffect(() => {
     if (!filteredSessions.length) { setSessionId(""); return; }
@@ -801,13 +872,16 @@ export default function BookingPage() {
           ) : null}
           <div className="field-block">
             <span>Test Center *</span>
-            <select value={selectedCenterId} onChange={(e) => setSelectedCenterId(e.target.value)} disabled={!centerOptions.length}>
+            <select value={selectedCenterId} onChange={(e) => { centerAutoPickedRef.current = false; setSelectedCenterId(e.target.value); }} disabled={!centerOptions.length}>
               <option value="">{loadingSessions ? "Loading centers..." : "Select test center"}</option>
               {centerOptions.map((item) => {
                 const idLabel = item.displayId ? ` (${item.displayIdType === "site" ? "Site" : "Center"} #${item.displayId})` : "";
+                const isReal = String(item.siteId).startsWith("real-");
+                const count = isReal ? (realCenterSessionCounts.get(String(item.displayId)) || 0) : null;
+                const countLabel = count === null ? "" : (count > 0 ? ` | Sessions: ${count}` : " | No confirmed sessions");
                 return (
                   <option key={item.siteId} value={item.siteId}>
-                    {item.name}{idLabel}
+                    {item.name}{idLabel}{countLabel}
                   </option>
                 );
               })}
@@ -853,6 +927,14 @@ export default function BookingPage() {
                 );
               })}
             </select>
+            {!loadingSessions && selectedCenterId && cityFilteredSessions.length > 0 && filteredSessions.length === 0 ? (
+              <small className="error-text" data-testid="no-center-sessions-note">
+                No confirmed exam sessions for this test center. SVP hides each session's test
+                center before booking, so only sessions verified for the selected center are shown
+                ({cityFilteredSessions.length} other session{cityFilteredSessions.length === 1 ? "" : "s"} in {selectedCity || "this city"} hidden).
+                Select another test center with "Sessions: N" in its name.
+              </small>
+            ) : null}
           </div>
           <div className="field-block">
             <span>Language *</span>
