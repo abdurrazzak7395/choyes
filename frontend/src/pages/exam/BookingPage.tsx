@@ -104,7 +104,7 @@ export default function BookingPage() {
     // centers of the selected city so the user can pick an actual test center name.
     const allPlaceholders = enriched.every((opt) => !opt.displayId);
     if (cityFilteredSessions.length && allPlaceholders && cityRealCenters.length) {
-      return cityRealCenters.map((c) => ({
+      const realOpts = cityRealCenters.map((c) => ({
         key: `real-${c.id}`,
         siteId: `real-${c.id}`,
         displayId: String(c.id),
@@ -112,6 +112,19 @@ export default function BookingPage() {
         name: c.name,
         city: selectedCity,
       }));
+      // Keep a booking path when SVP hides every session's center: an explicit,
+      // clearly-labeled option that shows only the undisclosed-center sessions.
+      return [
+        ...realOpts,
+        {
+          key: "city-all",
+          siteId: "city-all",
+          displayId: "",
+          displayIdType: "site" as const,
+          name: `Other ${selectedCity || "city"} sessions — center not disclosed by SVP`,
+          city: selectedCity,
+        },
+      ];
     }
     return enriched;
   }, [cityFilteredSessions, testCenterMap, cityRealCenters, selectedCity]);
@@ -128,6 +141,10 @@ export default function BookingPage() {
   const filteredSessions = useMemo(
     () => {
       if (!selectedCenterId) return cityFilteredSessions;
+      // Explicit "undisclosed center" bucket: only sessions with NO resolved center
+      if (selectedCenterId === "city-all") {
+        return cityFilteredSessions.filter((item) => !getResolvedSessionCenterId(item));
+      }
       if (isRealCenterSelection) {
         const realId = String(selectedCenterId).replace(/^real-/, "");
         return cityFilteredSessions.filter((item) => {
@@ -140,12 +157,14 @@ export default function BookingPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [cityFilteredSessions, selectedCenterId, isRealCenterSelection, sessionCenterIds]
   );
-  // Count of confirmed sessions per resolved center id (for real-center option labels)
+  // Count of confirmed sessions per resolved center id (for real-center option labels).
+  // "__unresolved__" key counts sessions whose center SVP hides.
   const realCenterSessionCounts = useMemo(() => {
     const counts = new Map<string, number>();
     cityFilteredSessions.forEach((item) => {
       const id = getResolvedSessionCenterId(item);
-      if (id) counts.set(String(id), (counts.get(String(id)) || 0) + 1);
+      const key = id ? String(id) : "__unresolved__";
+      counts.set(key, (counts.get(key) || 0) + 1);
     });
     return counts;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -421,18 +440,24 @@ export default function BookingPage() {
   useEffect(() => {
     if (!centerOptions.length) { setSelectedCenterId(""); return; }
     const hasSelected = centerOptions.some((item) => String(item.siteId) === String(selectedCenterId));
-    const countFor = (opt: any) =>
-      String(opt.siteId).startsWith("real-")
+    const countFor = (opt: any) => {
+      if (String(opt.siteId) === "city-all") return realCenterSessionCounts.get("__unresolved__") || 0;
+      return String(opt.siteId).startsWith("real-")
         ? (realCenterSessionCounts.get(String(opt.displayId)) || 0)
         : 1;
+    };
     if (hasSelected) {
-      // If the current selection was auto-picked (not user-chosen) and has no
-      // confirmed sessions, upgrade to a center that does once resolution lands.
+      // If the current selection was auto-picked (not user-chosen), upgrade to a
+      // real center with confirmed sessions once async resolution lands.
       if (centerAutoPickedRef.current) {
         const current = centerOptions.find((item) => String(item.siteId) === String(selectedCenterId));
-        if (current && countFor(current) === 0) {
-          const better = centerOptions.find((item) => countFor(item) > 0);
-          if (better) setSelectedCenterId(String(better.siteId));
+        const isAllCurrent = String(selectedCenterId) === "city-all";
+        const bestReal = centerOptions.find((item) => String(item.siteId) !== "city-all" && countFor(item) > 0);
+        if (bestReal && (isAllCurrent || (current && countFor(current) === 0))) {
+          setSelectedCenterId(String(bestReal.siteId));
+        } else if (current && countFor(current) === 0) {
+          const any = centerOptions.find((item) => countFor(item) > 0);
+          if (any) setSelectedCenterId(String(any.siteId));
         }
       }
       return;
@@ -458,6 +483,12 @@ export default function BookingPage() {
   useEffect(() => {
     const selectedCenter = centerOptions.find((item) => String(item.siteId) === String(selectedCenterId));
     if (selectedCenter) {
+      // "city-all" carries no center identity — booking goes with site_id null
+      if (String(selectedCenter.siteId) === "city-all") {
+        setSiteId("");
+        setSiteCity(String(selectedCenter.city || ""));
+        return;
+      }
       // For verified real-center picks, use the numeric site id for the booking payload
       const numericSiteId = String(selectedCenter.siteId).startsWith("real-")
         ? String(selectedCenter.displayId || "")
@@ -875,9 +906,12 @@ export default function BookingPage() {
             <select value={selectedCenterId} onChange={(e) => { centerAutoPickedRef.current = false; setSelectedCenterId(e.target.value); }} disabled={!centerOptions.length}>
               <option value="">{loadingSessions ? "Loading centers..." : "Select test center"}</option>
               {centerOptions.map((item) => {
-                const idLabel = item.displayId ? ` (${item.displayIdType === "site" ? "Site" : "Center"} #${item.displayId})` : "";
+                const isAll = String(item.siteId) === "city-all";
                 const isReal = String(item.siteId).startsWith("real-");
-                const count = isReal ? (realCenterSessionCounts.get(String(item.displayId)) || 0) : null;
+                const idLabel = item.displayId ? ` (${item.displayIdType === "site" ? "Site" : "Center"} #${item.displayId})` : "";
+                const count = isAll
+                  ? (realCenterSessionCounts.get("__unresolved__") || 0)
+                  : (isReal ? (realCenterSessionCounts.get(String(item.displayId)) || 0) : null);
                 const countLabel = count === null ? "" : (count > 0 ? ` | Sessions: ${count}` : " | No confirmed sessions");
                 return (
                   <option key={item.siteId} value={item.siteId}>
