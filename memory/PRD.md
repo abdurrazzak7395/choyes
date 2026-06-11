@@ -63,6 +63,15 @@ SVP (svp-international.pacc.sa) exam booking system for Bangladesh test centers,
 - FIX 2: openTicketPdf failure after new booking no longer surfaces raw SVP 400 ("Reservation is not paid or canceled") — status now says "ticket PDF will be available after payment".
 - tsc clean, 21/21 vitest. As always: unpaid reservations stay hidden upstream until payment.
 
+## STRICT CENTER->SESSION FILTERING + TOKEN REFRESH FIX (June 11 2026, session 3)
+- User chose STRICT mode (B): selecting a test center shows ONLY that center's confirmed sessions.
+- BookingPage.tsx: new `sessionCenterIds` state (sessionId -> resolved center id, captured from /exam-sessions/:id detail fetches in the existing name-resolution effect); `getResolvedSessionCenterId()`; strict `filteredSessions` (real-{id} -> only matching; "city-all" -> only undisclosed); `realCenterSessionCounts` (incl "__unresolved__" key); center options labeled "| Sessions: N" or "| No confirmed sessions"; explicit last option "Other {city} sessions — center not disclosed by SVP" (value "city-all", siteId set to "" so booking POST sends site_id null); auto-select prefers real center with confirmed sessions and upgrades auto-picks when resolution lands (centerAutoPickedRef, cleared on manual change); deep-link numeric siteId maps to real-{id}; note data-testid="no-center-sessions-note" when selected center has 0 confirmed sessions.
+- api.ts: SINGLE-FLIGHT token refresh (`refreshAccessToken()` shares one in-flight promise). Root cause found live: SVP rotates refresh token on every refresh AND revokes the session on reuse — parallel 401s previously fired concurrent refreshes -> "Session revoked" random logouts.
+- LIVE VERIFIED (2 real OTP logins): Rajshahi 2026-06-16 cat 59 -> 1 session, test_center {test_center_id:null, site_id:null, name:"Rajshahi Center"} in list AND detail (identity hidden upstream, confirmed again). UI: default auto-select city-all "Sessions: 1"; Pabna #201 -> session row empty+disabled + note + Site ID 201; back to city-all -> session reappears.
+- New test file BookingPage.strictfilter.integration.test.tsx (2 tests). 23/23 vitest, tsc clean.
+- Live available dates (June 2026): only Rajshahi/Khulna/Barishal, 18 entries, cat 59.
+- NOTE: playwright token injection must avoid hand-copied JWTs (one typo caused refresh storm + session revocation during testing). Trick used: write tokens to frontend/public/svp_tokens.json (same-origin fetch), DELETE after.
+
 ## Credentials
 - Access ADMIN: admin@example.com / 12345678 (see /app/memory/test_credentials.md)
 - SVP: mdrahadulislamsvp55445@yopmail.com / aRrazzak90# — OTP via email each login (yopmail inbox CAPTCHA-gated; user pastes OTP).

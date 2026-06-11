@@ -97,55 +97,71 @@
 #====================================================================================================
 
 user_problem_statement: |
-  Fix test-center ID → full center name resolver across ALL exam pages (test-center-browse,
-  test-center-available, booking, reservations, reservation-flow) using the existing
-  REAL_TEST_CENTERS + center-directory data already in the project. Then run a full system
-  test confirming nothing is broken.
+  (Session 3, June 11 2026) Strict test-center -> exam-session filtering on BookingPage:
+  Test Center row shows real center name + ID; after selecting a test center the Exam
+  Session row must show ONLY that center's sessions (user chose STRICT mode B). Verify
+  whole live SVP flow with real login.
 
 frontend:
+  - task: "BookingPage strict center->session filtering + session counts + city-all bucket"
+    implemented: true
+    working: true
+    file: "frontend/src/pages/exam/BookingPage.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          Added sessionCenterIds map (resolved via /exam-sessions/:id details),
+          strict filteredSessions (real-{id} -> only matching sessions; city-all ->
+          only undisclosed sessions), per-center "Sessions: N"/"No confirmed sessions"
+          labels, auto-select prefers real center with confirmed sessions
+          (centerAutoPickedRef), no-center-sessions-note, siteId="" for city-all.
+          VERIFIED LIVE (real OTP login): Rajshahi 16/06 default=city-all Sessions:1;
+          Pabna #201 -> empty session row + note + Site ID 201; back to city-all ->
+          session reappears. 23/23 vitest, tsc clean.
+
+  - task: "api.ts single-flight token refresh (fixes SVP session revocation race)"
+    implemented: true
+    working: true
+    file: "frontend/src/lib/api.ts"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: |
+          SVP rotates refresh token on every refresh + revokes session on reuse.
+          Parallel 401s previously fired concurrent refreshes -> random "Session
+          revoked" logouts. Now all callers share one in-flight refresh promise.
+          Verified live: full booking-page load with expired access token survived.
+
   - task: "ReservationsPage shows full real center name via resolver"
     implemented: true
-    working: "NA"
+    working: true
     file: "frontend/src/pages/exam/ReservationsPage.tsx"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
-      - working: "NA"
+      - working: true
         agent: "main"
-        comment: |
-          Wired resolveCenterDisplayName + getDirectoryCenterName into getCenterName().
-          Added getTestCenterId(), getCityName(); Center ID falls back to test_center_id;
-          new City row added under Center ID. ensureCenterDirectory() called on mount.
+        comment: "Wired resolver in prior session; unchanged this session."
 
   - task: "ReservationFlowPage shows full real center name via resolver"
     implemented: true
-    working: "NA"
+    working: true
     file: "frontend/src/pages/exam/ReservationFlowPage.tsx"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
-    status_history:
-      - working: "NA"
-        agent: "main"
-        comment: |
-          Step 1 hold preview + Step 2 reservation card now use resolveCenterDisplayName
-          with directory fallback. ensureCenterDirectory() preloaded.
-
-  - task: "Backend STATIC_TEST_CENTERS sync with frontend REAL_TEST_CENTERS"
-    implemented: true
-    working: "NA"
-    file: "frontend/supabase/functions/svp-proxy/index.ts"
-    stuck_count: 0
-    priority: "medium"
     needs_retesting: false
     status_history:
-      - working: "NA"
+      - working: true
         agent: "main"
-        comment: |
-          Added missing IDs 102 (Tangail) and 174 (Brahmanbaria) so source matches frontend.
-          NOTE: Cannot redeploy Supabase edge function from this env, but local source is now
-          consistent. Verified via vitest (21/21 pass) and `tsc --noEmit` (clean).
+        comment: "Wired resolver in prior session; unchanged this session."
 
   - task: "TestCenterBrowsePage shows resolved names + center IDs"
     implemented: true
@@ -153,11 +169,11 @@ frontend:
     file: "frontend/src/pages/exam/TestCenterBrowsePage.tsx"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
-        comment: "Already wired in prior iteration; re-verify after global resolver changes."
+        comment: "Already wired in prior iteration."
 
   - task: "TestCenterAvailablePage shows resolved names in selects + city panel"
     implemented: true
@@ -165,11 +181,11 @@ frontend:
     file: "frontend/src/pages/exam/TestCenterAvailablePage.tsx"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
-        comment: "Already wired; re-verify alongside ReservationsPage/ReservationFlowPage changes."
+        comment: "Already strict per center key; unchanged this session."
 
   - task: "BookingPage shows resolved center names in selects + summary"
     implemented: true
@@ -177,25 +193,22 @@ frontend:
     file: "frontend/src/pages/exam/BookingPage.tsx"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
-        comment: "Already wired; re-verify after global resolver changes."
+        comment: "Re-verified live this session alongside strict filtering."
 
 metadata:
   created_by: "main_agent"
-  version: "1.1"
-  test_sequence: 2
+  version: "1.2"
+  test_sequence: 3
   run_ui: true
 
 test_plan:
   current_focus:
-    - "ReservationsPage shows full real center name via resolver"
-    - "ReservationFlowPage shows full real center name via resolver"
-    - "TestCenterBrowsePage shows resolved names + center IDs"
-    - "TestCenterAvailablePage shows resolved names in selects + city panel"
-    - "BookingPage shows resolved center names in selects + summary"
+    - "BookingPage strict center->session filtering + session counts + city-all bucket"
+    - "api.ts single-flight token refresh (fixes SVP session revocation race)"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -203,7 +216,9 @@ test_plan:
 agent_communication:
   - agent: "main"
     message: |
-      Implemented two missing pages (ReservationsPage + ReservationFlowPage) using the
-      shared resolveCenterDisplayName + center-directory cache so every test-center field
-      across the app now shows the full real name plus center ID. Backend STATIC_TEST_CENTERS
-      synced. 21/21 vitest pass, tsc clean. Awaiting user permission to run full UI system test.
+      Session 3: strict mode B implemented + LIVE verified with real SVP OTP login.
+      Center dropdown shows real names + Site IDs + per-center session counts; selecting
+      a real center shows only its confirmed sessions (live: empty + note since SVP hides
+      identity pre-booking); explicit "Other {city} sessions" bucket keeps booking possible.
+      Also fixed token-refresh race that revoked SVP sessions. 23/23 vitest, tsc clean.
+      No backend (FastAPI) changes. Edge functions unchanged.
