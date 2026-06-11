@@ -330,7 +330,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── REFRESH ───────────────────────────────────────────────
+    // ── REFRESH (with rotation + reuse detection) ────────────
     if (path === "/refresh") {
       const { sessionId, refreshToken } = body;
       if (!sessionId || !refreshToken) return json({ error: "Missing sessionId/refreshToken" }, 401);
@@ -340,11 +340,28 @@ Deno.serve(async (req) => {
       if (new Date(session.refresh_expires_at).getTime() < Date.now()) return json({ error: "Refresh expired" }, 401);
 
       const ok = await verifyPassword(refreshToken, session.refresh_token_hash);
-      if (!ok) return json({ error: "Invalid refresh token" }, 401);
+      if (!ok) {
+        // Reuse detection: a previously-rotated token being replayed means
+        // the token was likely stolen — revoke the entire session.
+        if (session.prev_refresh_token_hash && await verifyPassword(refreshToken, session.prev_refresh_token_hash)) {
+          await supabase.from("svp_sessions").update({ revoked_at: new Date().toISOString() }).eq("id", sessionId);
+          return json({ error: "Refresh token reuse detected; session revoked" }, 401);
+        }
+        return json({ error: "Invalid refresh token" }, 401);
+      }
+
+      // Rotate: issue a new refresh token, keep the old hash for reuse detection
+      const newRefreshRaw = randomToken(32);
+      const newRefreshHash = await hashPassword(newRefreshRaw);
+      const { error: rotErr } = await supabase.from("svp_sessions").update({
+        prev_refresh_token_hash: session.refresh_token_hash,
+        refresh_token_hash: newRefreshHash,
+      }).eq("id", sessionId);
+      if (rotErr) throw { statusCode: 500, message: rotErr.message };
 
       const user = (session as any).svp_users;
       const accessToken = await signJwt({ sub: user.id, login: user.login, sid: session.id }, JWT_SECRET, 900);
-      return json({ accessToken });
+      return json({ accessToken, refreshToken: newRefreshRaw });
     }
 
     // ── LOGOUT ────────────────────────────────────────────────
