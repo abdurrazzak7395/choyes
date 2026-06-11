@@ -480,6 +480,7 @@ export default function BookingPage() {
         item?.encrypted_id,
         item?.session_token,
         item?.token,
+        item?.id,
       ];
       return String(candidates.find((value) => typeof value === "string" && value.includes("--")) || "").trim();
     };
@@ -623,7 +624,14 @@ export default function BookingPage() {
           }
         }
         setStatus(nextReservationId ? `Reservation confirmed: #${nextReservationId}` : "Reservation created");
-        if (nextReservationId) await openTicketPdf(String(nextReservationId));
+        if (nextReservationId) {
+          try {
+            await openTicketPdf(String(nextReservationId));
+          } catch {
+            // Unpaid reservations have no ticket yet — keep the success status visible
+            setStatus(`Reservation confirmed: #${nextReservationId} — ticket PDF will be available after payment.`);
+          }
+        }
       }
     } catch (err: any) {
       // Extract SVP validation errors for friendlier messages

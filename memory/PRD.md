@@ -57,6 +57,12 @@ SVP (svp-international.pacc.sa) exam booking system for Bangladesh test centers,
 - VERIFIED LIVE: Dhaka 13/06 → dropdown shows 8 real centers (German #45, Korea #17, BRTC #115, Kishoreganj #220, Manikganj #223, Narsingdi #218, Shariatpur #221, Tangail #102); picked Korea TTC #17 → session label "Bangladesh Korea TTC Dhaka (Site #17) | Session 1", Site ID: 17 in panel. tsc clean, 21/21 vitest.
 - NOTE: SVP may still assign its own center at reservation time (site_id is a hint upstream may ignore).
 
+## LIVE MANUAL BOOKING VERIFIED + 2 FIXES (June 11 2026)
+- LIVE manual flow proven: deep-link prefill → real center pick (Korea TTC #17) → **Reservation confirmed #4258777** (site_id 17, Bengali OFFBB) via UI Confirm Booking. Second run: **Create Hold #3842682** (numeric session 1556646) works after fix.
+- FIX 1: createHold getEncryptedSessionToken now includes `item?.id` candidate (session list items carry the encrypted token in `id`) — manual Create Hold was failing with "No encrypted SVP exam session tokens found".
+- FIX 2: openTicketPdf failure after new booking no longer surfaces raw SVP 400 ("Reservation is not paid or canceled") — status now says "ticket PDF will be available after payment".
+- tsc clean, 21/21 vitest. As always: unpaid reservations stay hidden upstream until payment.
+
 ## Credentials
 - Access ADMIN: admin@example.com / 12345678 (see /app/memory/test_credentials.md)
 - SVP: mdrahadulislamsvp55445@yopmail.com / aRrazzak90# — OTP via email each login (yopmail inbox CAPTCHA-gated; user pastes OTP).
