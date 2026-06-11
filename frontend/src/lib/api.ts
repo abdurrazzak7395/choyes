@@ -59,6 +59,40 @@ export async function apiAuth<T = any>(
   return data as T;
 }
 
+// Single-flight token refresh. SVP rotates the refresh token on EVERY refresh and
+// revokes the session if an old refresh token is reused — so when many parallel API
+// calls hit 401 at the same time, they must all await the SAME refresh request.
+let refreshInFlight: Promise<string | null> | null = null;
+function refreshAccessToken(): Promise<string | null> {
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = (async () => {
+    try {
+      const { refreshToken, sessionId } = getSession();
+      if (!refreshToken || !sessionId) return null;
+      const refreshRes = await doFetch(`${BASE}/svp-auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId, refreshToken }),
+      });
+      if (refreshRes.res.ok && refreshRes.data?.accessToken) {
+        localStorage.setItem("accessToken", refreshRes.data.accessToken);
+        // Token rotation: server returns a new refresh token on every refresh
+        if (refreshRes.data?.refreshToken) {
+          localStorage.setItem("refreshToken", refreshRes.data.refreshToken);
+        }
+        return refreshRes.data.accessToken as string;
+      }
+      if (refreshRes.res.status === 401) clearSession();
+      return null;
+    } catch {
+      return null;
+    }
+  })().finally(() => {
+    refreshInFlight = null;
+  });
+  return refreshInFlight;
+}
+
 export async function api<T = any>(
   path: string,
   { method = "GET", body, token }: { method?: string; body?: any; token?: string } = {}
@@ -83,26 +117,12 @@ export async function api<T = any>(
   let { res, data } = await doFetch(`${BASE}/svp-proxy${path}`, makeOpts(access));
 
   if (shouldRefresh(res.status, data) && session.refreshToken && session.sessionId) {
-    try {
-      const refreshRes = await doFetch(`${BASE}/svp-auth/refresh`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: session.sessionId, refreshToken: session.refreshToken }),
-      });
-
-      if (refreshRes.res.ok && refreshRes.data?.accessToken) {
-        access = refreshRes.data.accessToken;
-        localStorage.setItem("accessToken", access);
-        // Token rotation: server returns a new refresh token on every refresh
-        if (refreshRes.data?.refreshToken) {
-          localStorage.setItem("refreshToken", refreshRes.data.refreshToken);
-        }
-        ({ res, data } = await doFetch(`${BASE}/svp-proxy${path}`, makeOpts(access)));
-      } else if (refreshRes.res.status === 401) {
-        clearSession();
-      }
-    } catch {
-      // refresh failed, proceed with original error
+    // Single-flight refresh: SVP rotates the refresh token on every refresh and
+    // revokes the whole session on reuse, so concurrent 401s must share ONE refresh.
+    const newAccess = await refreshAccessToken();
+    if (newAccess) {
+      access = newAccess;
+      ({ res, data } = await doFetch(`${BASE}/svp-proxy${path}`, makeOpts(access)));
     }
   }
 
