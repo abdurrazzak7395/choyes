@@ -86,3 +86,6 @@ android-sdk/
 credentials.json
 *.key
 .credentials
+
+# Lovable Cloud managed frontend env (publishable values, safe to commit)
+!frontend/.env
