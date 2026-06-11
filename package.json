@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
-    "build": "cd frontend && npm install && npm run build",
+    "build": "cd frontend && npm install && npm run build && cd .. && rm -rf dist && cp -r frontend/dist dist",
     "dev": "cd frontend && (test -x node_modules/.bin/vite || npm install) && node_modules/.bin/vite --host :: --port 8080"
   }
 }
