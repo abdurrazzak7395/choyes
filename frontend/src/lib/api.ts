@@ -93,6 +93,10 @@ export async function api<T = any>(
       if (refreshRes.res.ok && refreshRes.data?.accessToken) {
         access = refreshRes.data.accessToken;
         localStorage.setItem("accessToken", access);
+        // Token rotation: server returns a new refresh token on every refresh
+        if (refreshRes.data?.refreshToken) {
+          localStorage.setItem("refreshToken", refreshRes.data.refreshToken);
+        }
         ({ res, data } = await doFetch(`${BASE}/svp-proxy${path}`, makeOpts(access)));
       } else if (refreshRes.res.status === 401) {
         clearSession();
