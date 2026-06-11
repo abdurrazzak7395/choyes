@@ -58,6 +58,9 @@ export default function BookingPage() {
   const [autoBookStatus, setAutoBookStatus] = useState("");
   const [autoAttempts, setAutoAttempts] = useState(0);
   const [lastCheckAt, setLastCheckAt] = useState("");
+  // Deep-link auto-fill guards: keep URL-provided city/date from being wiped by reset effects
+  const urlPrefillOccupationRef = useRef(Boolean(searchParams.get("siteCity") || searchParams.get("examDate")));
+  const urlPrefillCityRef = useRef(Boolean(searchParams.get("siteCity")));
 
   const selectedOccupation = useMemo(
     () => occupations.find((item) => String(item.id) === String(selectedOccupationId)) || null,
@@ -172,11 +175,23 @@ export default function BookingPage() {
     setCategoryId(String(selectedOccupation.categoryId || ""));
     setLanguageCode((prev) => prev || String(selectedOccupation.languageCodes[0]?.code || ""));
     setMethodology(String(selectedOccupation.methodology || "in_person"));
+    if (urlPrefillOccupationRef.current) {
+      // Deep-link auto-fill: keep the city/date that arrived via URL params
+      urlPrefillOccupationRef.current = false;
+      return;
+    }
     setSelectedCity(""); setAvailableDate(""); setAvailableDateEntries([]); setSessions([]);
     setSelectedCenterId(""); setSessionId(""); setHoldId(""); setReservationId("");
   }, [selectedOccupation]);
 
   useEffect(() => {
+    if (urlPrefillCityRef.current && selectedCity && selectedCity === searchParams.get("siteCity")) {
+      // Deep-link auto-fill: city was set from URL — keep the URL-provided date intact
+      urlPrefillCityRef.current = false;
+      setSiteCity(selectedCity);
+      setStatus(`City selected: ${selectedCity}. Loading sessions for the selected date.`);
+      return;
+    }
     setAvailableDate(""); setSessions([]); setSelectedCenterId(""); setSessionId("");
     setSiteId(""); setSiteCity(selectedCity || ""); setHoldId(""); setReservationId("");
     if (selectedCity) setStatus(`City selected: ${selectedCity}. Loading sessions for the selected date.`);
@@ -633,7 +648,7 @@ export default function BookingPage() {
   const effCity = selectedCity || String(searchParams.get("siteCity") || "");
   const effDate = availableDate || normalizeDateValue(String(searchParams.get("examDate") || ""));
 
-  async function autoBookAttempt(): Promise<boolean> {
+  async function autoBookAttempt(): Promise<boolean | "waiting"> {
     // Language is mandatory for the reservation — wait until occupation data is loaded.
     const langCode =
       languageCode ||
@@ -642,7 +657,7 @@ export default function BookingPage() {
       "";
     if (!langCode) {
       setAutoBookStatus("Waiting for occupation/language data to load…");
-      return false;
+      return "waiting";
     }
 
     const params = new URLSearchParams({
@@ -678,11 +693,11 @@ export default function BookingPage() {
       method: "POST",
       body: {
         exam_session_id: encId,
-        occupation_id: Number(selectedOccupationId),
+        occupation_id: Number(effOccupationId),
         methodology: methodology || "in_person",
         language_code: langCode,
         site_id: null,
-        site_city: selectedCity || null,
+        site_city: effCity || null,
         hold_id: newHoldId ? Number(newHoldId) : null,
       },
     });
@@ -701,6 +716,10 @@ export default function BookingPage() {
     return true;
   }
 
+  // Keep the latest attempt closure available to the polling interval (avoids stale state)
+  const autoBookAttemptRef = useRef<() => Promise<boolean | "waiting">>();
+  autoBookAttemptRef.current = autoBookAttempt;
+
   useEffect(() => {
     if (!autoBook) { setAutoBookStatus(""); return; }
     if (reservationId) { setAutoBookStatus(`Already booked — Reservation #${reservationId}`); return; }
@@ -717,15 +736,13 @@ export default function BookingPage() {
       setLastCheckAt(new Date().toLocaleTimeString());
       try {
         setAutoBookStatus("Checking live seats…");
-        const ok = await autoBookAttempt();
+        const ok = await autoBookAttemptRef.current!();
         if (!active) return;
-        if (ok) {
+        if (ok === true) {
           setAutoBook(false);
           setAutoBookStatus("✓ Booked! Auto-booking stopped.");
-        } else {
-          setAutoBookStatus((prev) =>
-            prev.startsWith("Waiting") ? prev : `No open session yet in ${effCity} on ${effDate} — watching live…`
-          );
+        } else if (ok !== "waiting") {
+          setAutoBookStatus(`No open session yet in ${effCity} on ${effDate} — watching live…`);
         }
       } catch (err: any) {
         if (active) setAutoBookStatus(`Attempt failed: ${err?.message || "error"} — retrying…`);

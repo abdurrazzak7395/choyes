@@ -39,12 +39,21 @@ SVP (svp-international.pacc.sa) exam booking system for Bangladesh test centers,
 - FULL BOOKING CONFIRMED LIVE: hold POST → reservation POST /exam-reservations returned reservation id 4249720 (draft). Body: {exam_session_id: encrypted, occupation_id: 2279, methodology, language_code: "TLREE", site_id: null, site_city, hold_id}. Draft NOT finalized — SVP requires payment (test_price 50) within ~20 min (exam-constraints reservation_duration) or auto-discards; GET detail/list 404s the unpaid draft. NO money spent. payments-validate-pending → can_proceed:true.
 - BOOKING SYSTEM STATUS: works fully up to the payment gateway step (POST /payments would be next — requires real money).
 
+## LIVE AUTO-BOOKING E2E VERIFIED (June 11 2026, forked session)
+- FIXED: Forked env lost .env files → recreated /app/backend/.env (MONGO_URL, DB_NAME) and /app/frontend/.env (REACT_APP_BACKEND_URL=https://center-name-mapper.preview.emergentagent.com, VITE_SUPABASE_URL, VITE_SUPABASE_PROJECT_ID, VITE_SUPABASE_PUBLISHABLE_KEY=placeholder — real anon key still needed from user for BookingPage DB fallback query).
+- FIXED BookingPage deep-link auto-fill: occupation-resolve effect was wiping URL-provided city/date (urlPrefillOccupationRef/urlPrefillCityRef guards added).
+- FIXED auto-booking stale closure: polling interval captured stale languageCode/occupations → stuck on "Waiting for occupation/language data". Now uses autoBookAttemptRef (latest closure each render); attempt returns "waiting" sentinel; booking body uses effOccupationId/effCity.
+- LIVE E2E PROVEN (real OTP 924572 from user): login → OTP verify → session → /exam/test-center-available (occupation→city→date→8 real Dhaka centers panel) → ⚡Auto-Book deep link → auto-fill OK → hold #3842434 (numeric session 1556646) → POST /exam-reservations → **Reservation #4258539 — "Narsingdi Technical Training Center" (#218) real name resolved at booking time**.
+- Same as before: unpaid draft hidden upstream (list/detail 404) until payment; balance 0, credits 0 → payment gateway step is the only remaining unproven step (needs real money).
+- Reservations page verified live: #4066364 completed → "Pabna Technical Training Centre" (#201).
+
 ## Credentials
 - Access ADMIN: admin@example.com / 12345678 (see /app/memory/test_credentials.md)
 - SVP: mdrahadulislamsvp55445@yopmail.com / aRrazzak90# — OTP via email each login (yopmail inbox CAPTCHA-gated; user pastes OTP).
 
 ## Backlog / Next
 - P0: Payment flow (POST /payments) to finalize reservations — requires real money + gateway; UI for paid bookings.
+- P0: Get real Supabase anon/publishable key from user (frontend/.env currently has placeholder — only affects BookingPage supabase.from("test_centers") DB fallback; static map + center-directory cover names).
 - P1: An Access USER-role account for full browser login path (/access/login USER → /auth/login SVP).
 - P2: Optional React Router v7 future flags to silence console warnings.
 - P2: Decide fate of unused FastAPI backend (keep as health endpoint or migrate sensitive logic).
