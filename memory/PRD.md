@@ -47,6 +47,10 @@ SVP (svp-international.pacc.sa) exam booking system for Bangladesh test centers,
 - Same as before: unpaid draft hidden upstream (list/detail 404) until payment; balance 0, credits 0 → payment gateway step is the only remaining unproven step (needs real money).
 - Reservations page verified live: #4066364 completed → "Pabna Technical Training Centre" (#201).
 
+## AUTO-BOOKING REMOVED + SUPABASE KEY NOTE (June 11 2026)
+- User requested removal of auto-booking: deleted autoBook states, autoBookAttempt, polling watcher effect, AUTO-BOOKING panel (BookingPage.tsx), and "⚡ Auto-Book this selection" link (TestCenterAvailablePage.tsx — "Continue to booking" deep-link prefill kept and working). toast/sonner import removed. tsc clean, 21/21 vitest pass, live UI verified (panel gone, prefill works).
+- User shared key sb_publishable_oMM1GbrJwXTDSB4LMFvdIQ_OMQ7TDSr for project cwonwsnnhojghneeqwpf — WRONG PROJECT: it has NO svp-proxy/svp-auth functions and NO test_centers table (verified 404s). App stays on llwquxmlsdmdtmmktqqe (functions live there, verify_jwt off so frontend works without its anon key). Key stored in frontend/.env anyway; BookingPage supabase.from DB fallback remains inactive (names covered by static map + /center-directory).
+
 ## Credentials
 - Access ADMIN: admin@example.com / 12345678 (see /app/memory/test_credentials.md)
 - SVP: mdrahadulislamsvp55445@yopmail.com / aRrazzak90# — OTP via email each login (yopmail inbox CAPTCHA-gated; user pastes OTP).

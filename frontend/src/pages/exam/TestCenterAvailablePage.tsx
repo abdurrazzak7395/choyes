@@ -566,15 +566,6 @@ export default function TestCenterAvailablePage() {
             >
               Continue to booking
             </Link>
-            <Link
-              data-testid="auto-book-link"
-              to={`/exam/booking?occupationId=${occupationId}&categoryId=${categoryId}&siteCity=${encodeURIComponent(
-                city
-              )}&siteId=${centerKey}&examDate=${date}&autobook=1`}
-              className="ml-2 inline-flex items-center justify-center rounded-md border border-green-600 bg-green-600/10 px-4 py-2 text-sm font-semibold text-green-700 hover:bg-green-600/20"
-            >
-              ⚡ Auto-Book this selection
-            </Link>
           </div>
         )}
       </div>
