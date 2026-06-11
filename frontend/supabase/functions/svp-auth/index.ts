@@ -64,19 +64,15 @@ async function svpRequest(
 
 // ── Crypto helpers (AES-256-GCM) ────────────────────────────────────
 async function getEncKey(): Promise<Uint8Array> {
-  const raw = Deno.env.get("SESSION_ENC_KEY_BASE64") || "";
-  if (raw) {
-    try {
-      const decoded = Uint8Array.from(atob(raw), (c) => c.charCodeAt(0));
-      if (decoded.length === 32) return decoded;
-    } catch { /* fall through */ }
-    // derive 32 bytes via SHA-256
-    const encoder = new TextEncoder();
-    return new Uint8Array(await crypto.subtle.digest("SHA-256", encoder.encode(raw)));
-  }
-  // dev fallback
-  const fallback = Deno.env.get("JWT_REFRESH_SECRET") || "dev";
-  return new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(fallback)));
+  const raw = Deno.env.get("SESSION_ENC_KEY_BASE64");
+  if (!raw) throw new Error("SESSION_ENC_KEY_BASE64 is required");
+  try {
+    const decoded = Uint8Array.from(atob(raw), (c) => c.charCodeAt(0));
+    if (decoded.length === 32) return decoded;
+  } catch { /* fall through */ }
+  // derive 32 bytes via SHA-256
+  const encoder = new TextEncoder();
+  return new Uint8Array(await crypto.subtle.digest("SHA-256", encoder.encode(raw)));
 }
 
 async function encryptString(plain: string): Promise<string> {

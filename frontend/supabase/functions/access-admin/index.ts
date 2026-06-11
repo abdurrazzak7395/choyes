@@ -11,7 +11,8 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const JWT_SECRET_RAW = Deno.env.get("JWT_ACCESS_SECRET") || "access-backend-secret-key-change-me";
+const JWT_SECRET_RAW = Deno.env.get("JWT_ACCESS_SECRET");
+if (!JWT_SECRET_RAW) throw new Error("JWT_ACCESS_SECRET is required");
 
 async function getJwtKey() {
   const encoder = new TextEncoder();

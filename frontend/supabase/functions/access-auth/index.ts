@@ -281,11 +281,11 @@ serve(async (req) => {
           expires_at: expiresAt,
         });
 
-      // Return the code in response (in production, send via email)
+      // SECURITY: never return the reset code in the response.
+      // The code is stored server-side; an administrator can assist with resets
+      // until an email delivery service is configured.
       return new Response(JSON.stringify({
-        message: "If an account with that email exists, a reset code has been generated.",
-        // Include code for now since no email service is configured
-        resetCode,
+        message: "If an account with that email exists, a reset code has been generated. Please contact your administrator to receive it.",
       }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
