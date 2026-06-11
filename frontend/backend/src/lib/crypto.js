@@ -1,22 +1,21 @@
 import crypto from 'crypto';
 
 function getKey(){
-  // Accept a real 32-byte base64 key when provided.
+  // Require a real key — no insecure dev fallback.
   const raw = process.env.SESSION_ENC_KEY_BASE64;
-  if (raw && raw.length > 0) {
-    try {
-      const decoded = Buffer.from(raw, 'base64');
-      if (decoded.length === 32) return decoded;
-    } catch {
-      // Fall through to deterministic hashing below.
-    }
-
-    // Fallback: derive a stable 32-byte key from the provided value.
-    return crypto.createHash('sha256').update(raw).digest();
+  if (!raw || !String(raw).trim()) {
+    throw new Error('SESSION_ENC_KEY_BASE64 is required');
   }
 
-  // dev fallback (not for prod)
-  return crypto.createHash('sha256').update(process.env.JWT_REFRESH_SECRET || 'dev').digest();
+  try {
+    const decoded = Buffer.from(raw, 'base64');
+    if (decoded.length === 32) return decoded;
+  } catch {
+    // Fall through to deterministic hashing below.
+  }
+
+  // Derive a stable 32-byte key from the provided value.
+  return crypto.createHash('sha256').update(raw).digest();
 }
 
 export function encryptString(plain){

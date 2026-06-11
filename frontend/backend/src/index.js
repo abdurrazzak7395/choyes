@@ -20,6 +20,7 @@ function validateEnv() {
     'JWT_REFRESH_SECRET',
     'DATABASE_URL',
     'SVP_BASE_URL',
+    'SESSION_ENC_KEY_BASE64',
   ];
 
   for (const key of required) requireEnv(key);
@@ -78,7 +79,7 @@ function isAllowedOrigin(origin) {
 }
 
 app.use(cors({
-  origin: true,
+  origin: (origin, callback) => callback(null, isAllowedOrigin(origin)),
   credentials: true,
 }));
 

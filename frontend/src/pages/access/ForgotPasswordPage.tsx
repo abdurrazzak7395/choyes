@@ -18,13 +18,9 @@ export default function ForgotPasswordPage() {
     setLoading(true);
     setMsg("");
     try {
-      const res = await accessAuthApi("/forgot-password", { email });
-      setMsg("A reset code has been sent. Please check your email or use the code provided.");
+      await accessAuthApi("/forgot-password", { email });
+      setMsg("If an account with that email exists, a reset code has been generated. Please contact your administrator to receive it.");
       setMsgType("success");
-      // For now, show the code since no email service
-      if (res.resetCode) {
-        setCode(res.resetCode);
-      }
       setStep("reset");
     } catch (err: any) {
       setMsg(err?.data?.message || err?.message || "Failed to request reset code");
