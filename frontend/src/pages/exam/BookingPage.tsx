@@ -10,7 +10,7 @@ import {
   buildCityOptions, buildDateOptions, buildCalendarDays, formatDateLabel,
   detectBookingMode,
 } from "@/lib/booking-utils";
-import { getRealTestCenterNameById, resolveCenterDisplayName } from "@/lib/real-test-centers";
+import { getRealTestCenterNameById, resolveCenterDisplayName, fetchCityCenters, type CityCenterEntry } from "@/lib/real-test-centers";
 import { ensureCenterDirectory, getDirectoryCenterName } from "@/lib/center-directory";
 import { CityCentersPanel } from "@/components/CityCentersPanel";
 
@@ -23,6 +23,7 @@ export default function BookingPage() {
   const [availableDateEntries, setAvailableDateEntries] = useState<{ city: string; date: string }[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
   const [testCenterMap, setTestCenterMap] = useState<Map<string, string>>(new Map());
+  const [cityRealCenters, setCityRealCenters] = useState<CityCenterEntry[]>([]);
   const [selectedOccupationId, setSelectedOccupationId] = useState("");
   const [selectedCity, setSelectedCity] = useState("");
   const [availableDate, setAvailableDate] = useState("");
@@ -81,7 +82,7 @@ export default function BookingPage() {
   const centerOptions = useMemo(() => {
     const options = buildCenterOptions(cityFilteredSessions);
     // Enrich with real test center names from the map + verified real list + directory
-    return options.map((opt) => ({
+    const enriched = options.map((opt) => ({
       ...opt,
       name: resolveCenterDisplayName(
         testCenterMap.get(opt.siteId) ||
@@ -92,10 +93,26 @@ export default function BookingPage() {
         opt.siteId
       ),
     }));
-  }, [cityFilteredSessions, testCenterMap]);
+    // SVP hides the real center identity pre-booking (sessions only carry the city).
+    // When every option is an unidentified placeholder, surface the verified REAL
+    // centers of the selected city so the user can pick an actual test center name.
+    const allPlaceholders = enriched.every((opt) => !opt.displayId);
+    if (cityFilteredSessions.length && allPlaceholders && cityRealCenters.length) {
+      return cityRealCenters.map((c) => ({
+        key: `real-${c.id}`,
+        siteId: `real-${c.id}`,
+        displayId: String(c.id),
+        displayIdType: "site" as const,
+        name: c.name,
+        city: selectedCity,
+      }));
+    }
+    return enriched;
+  }, [cityFilteredSessions, testCenterMap, cityRealCenters, selectedCity]);
+  const isRealCenterSelection = String(selectedCenterId).startsWith("real-");
   const filteredSessions = useMemo(
-    () => selectedCenterId ? cityFilteredSessions.filter((item) => getCenterKey(item) === String(selectedCenterId)) : cityFilteredSessions,
-    [cityFilteredSessions, selectedCenterId]
+    () => selectedCenterId && !isRealCenterSelection ? cityFilteredSessions.filter((item) => getCenterKey(item) === String(selectedCenterId)) : cityFilteredSessions,
+    [cityFilteredSessions, selectedCenterId, isRealCenterSelection]
   );
   const selectedSession = useMemo(
     () => filteredSessions.find((item) => String(getSessionId(item)) === String(sessionId)) || null,
@@ -347,6 +364,14 @@ export default function BookingPage() {
     return () => { active = false; };
   }, [sessions]);
 
+  // Load verified real centers for the selected city (static list + DB merge)
+  useEffect(() => {
+    if (!selectedCity) { setCityRealCenters([]); return; }
+    let active = true;
+    fetchCityCenters(selectedCity).then((list) => { if (active) setCityRealCenters(list); });
+    return () => { active = false; };
+  }, [selectedCity]);
+
   useEffect(() => {
     if (!centerOptions.length) { setSelectedCenterId(""); return; }
     const hasSelected = centerOptions.some((item) => String(item.siteId) === String(selectedCenterId));
@@ -361,13 +386,24 @@ export default function BookingPage() {
 
   useEffect(() => {
     const selectedCenter = centerOptions.find((item) => String(item.siteId) === String(selectedCenterId));
-    if (selectedCenter) { setSiteId(String(selectedCenter.siteId || "")); setSiteCity(String(selectedCenter.city || "")); }
+    if (selectedCenter) {
+      // For verified real-center picks, use the numeric site id for the booking payload
+      const numericSiteId = String(selectedCenter.siteId).startsWith("real-")
+        ? String(selectedCenter.displayId || "")
+        : String(selectedCenter.siteId || "");
+      setSiteId(numericSiteId);
+      setSiteCity(String(selectedCenter.city || ""));
+    }
   }, [selectedCenterId, centerOptions]);
 
   useEffect(() => {
     if (!selectedSession) return;
-    setSiteId(String(getSessionSiteId(selectedSession) || ""));
-    setSiteCity(String(getSessionSiteCity(selectedSession) || ""));
+    // Only overwrite when the session actually carries identity — SVP usually
+    // hides it pre-booking, and we must keep the user's real-center selection.
+    const sessionSiteId = getSessionSiteId(selectedSession);
+    const sessionSiteCity = getSessionSiteCity(selectedSession);
+    if (sessionSiteId) setSiteId(String(sessionSiteId));
+    if (sessionSiteCity) setSiteCity(String(sessionSiteCity));
     const codes = getPrometricCodes(selectedSession);
     if (codes[0]?.code || codes[0]?.language_code) setLanguageCode(String(codes[0].code || codes[0].language_code));
   }, [selectedSession]);
@@ -776,10 +812,13 @@ export default function BookingPage() {
               <option value="">{loadingSessions ? "Loading sessions..." : "Select session"}</option>
               {filteredSessions.map((item, idx) => {
                 const sid = getSessionSiteId(item);
-                const idLabel = sid ? ` (Site #${sid})` : "";
+                const idLabel = sid ? ` (Site #${sid})` : (isRealCenterSelection && siteId ? ` (Site #${siteId})` : "");
                 const rawSessionId = String(getSessionId(item));
                 const sessionLabel = rawSessionId.includes("--") ? `Session ${idx + 1}` : `Session #${rawSessionId}`;
-                const realName = resolveCenterDisplayName(
+                const selectedRealCenter = isRealCenterSelection
+                  ? centerOptions.find((o) => String(o.siteId) === String(selectedCenterId))
+                  : null;
+                const realName = selectedRealCenter?.name || resolveCenterDisplayName(
                   testCenterMap.get(String(sid)) ||
                     getDirectoryCenterName(sid, getSessionTestCenterId(item)) ||
                     getSessionCenterName(item),

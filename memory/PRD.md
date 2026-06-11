@@ -51,6 +51,12 @@ SVP (svp-international.pacc.sa) exam booking system for Bangladesh test centers,
 - User requested removal of auto-booking: deleted autoBook states, autoBookAttempt, polling watcher effect, AUTO-BOOKING panel (BookingPage.tsx), and "⚡ Auto-Book this selection" link (TestCenterAvailablePage.tsx — "Continue to booking" deep-link prefill kept and working). toast/sonner import removed. tsc clean, 21/21 vitest pass, live UI verified (panel gone, prefill works).
 - User shared key sb_publishable_oMM1GbrJwXTDSB4LMFvdIQ_OMQ7TDSr for project cwonwsnnhojghneeqwpf — WRONG PROJECT: it has NO svp-proxy/svp-auth functions and NO test_centers table (verified 404s). App stays on llwquxmlsdmdtmmktqqe (functions live there, verify_jwt off so frontend works without its anon key). Key stored in frontend/.env anyway; BookingPage supabase.from DB fallback remains inactive (names covered by static map + /center-directory).
 
+## REAL CENTER NAMES IN BOOKING TEST CENTER DROPDOWN (June 11 2026)
+- User wanted real center names selectable in the booking flow Test Center row (not "Dhaka Center"). Since SVP hides center identity pre-booking, BookingPage now: when all session-derived center options are unidentified placeholders, the Test Center dropdown lists the verified REAL centers of the selected city (static REAL_TEST_CENTERS + DB merge via new `fetchCityCenters()` in real-test-centers.ts; CityCentersPanel refactored to reuse it).
+- Selecting a real center (option key `real-{id}`): siteId set to the numeric id → booking POST carries site_id + site_city; session list NOT filtered (any session bookable); session option + status panel show the chosen real name/Site ID. selectedSession effect no longer wipes siteId when session carries no identity.
+- VERIFIED LIVE: Dhaka 13/06 → dropdown shows 8 real centers (German #45, Korea #17, BRTC #115, Kishoreganj #220, Manikganj #223, Narsingdi #218, Shariatpur #221, Tangail #102); picked Korea TTC #17 → session label "Bangladesh Korea TTC Dhaka (Site #17) | Session 1", Site ID: 17 in panel. tsc clean, 21/21 vitest.
+- NOTE: SVP may still assign its own center at reservation time (site_id is a hint upstream may ignore).
+
 ## Credentials
 - Access ADMIN: admin@example.com / 12345678 (see /app/memory/test_credentials.md)
 - SVP: mdrahadulislamsvp55445@yopmail.com / aRrazzak90# — OTP via email each login (yopmail inbox CAPTCHA-gated; user pastes OTP).

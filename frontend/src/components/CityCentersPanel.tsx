@@ -1,12 +1,6 @@
 import { useEffect, useState } from "react";
 import { MapPin } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { getCentersByCity } from "@/lib/real-test-centers";
-
-interface CityCenter {
-  id: number;
-  name: string;
-}
+import { fetchCityCenters, type CityCenterEntry } from "@/lib/real-test-centers";
 
 /**
  * Shows the verified REAL test centers (name + ID) for a city, live from the
@@ -15,7 +9,7 @@ interface CityCenter {
  * real center names operating in the selected city.
  */
 export const CityCentersPanel = ({ city }: { city: string }) => {
-  const [centers, setCenters] = useState<CityCenter[]>([]);
+  const [centers, setCenters] = useState<CityCenterEntry[]>([]);
 
   useEffect(() => {
     if (!city) {
@@ -23,32 +17,9 @@ export const CityCentersPanel = ({ city }: { city: string }) => {
       return;
     }
     let active = true;
-    (async () => {
-      const seen = new Map<string, CityCenter>();
-      getCentersByCity(city).forEach((c) =>
-        seen.set(c.name.trim().toLowerCase(), { id: c.site_id, name: c.name })
-      );
-      try {
-        const { data } = await supabase
-          .from("test_centers")
-          .select("site_id,name,city")
-          .ilike("city", city.trim());
-        data?.forEach((row: any) => {
-          const key = String(row.name || "").trim().toLowerCase();
-          // Real SVP center IDs are small numbers — skip junk/test rows
-          if (key && row.site_id && row.site_id < 100000 && !seen.has(key)) {
-            seen.set(key, { id: row.site_id, name: row.name });
-          }
-        });
-      } catch {
-        /* DB lookup optional — static list already loaded */
-      }
-      if (active) {
-        setCenters(
-          Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name))
-        );
-      }
-    })();
+    fetchCityCenters(city).then((list) => {
+      if (active) setCenters(list);
+    });
     return () => {
       active = false;
     };

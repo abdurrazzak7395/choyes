@@ -1,3 +1,5 @@
+import { supabase } from "@/integrations/supabase/client";
+
 export interface RealTestCenter {
   site_id: number;
   test_center_id: number;
@@ -42,6 +44,39 @@ export const ALL_CITIES = Object.keys(REAL_TEST_CENTERS);
 
 export function getCentersByCity(city: string): RealTestCenter[] {
   return REAL_TEST_CENTERS[city] || [];
+}
+
+export interface CityCenterEntry {
+  id: number;
+  name: string;
+}
+
+/**
+ * Verified real centers for a city: static REAL_TEST_CENTERS merged with the
+ * Supabase test_centers DB (when reachable). Sorted by name.
+ */
+export async function fetchCityCenters(city: string): Promise<CityCenterEntry[]> {
+  if (!city) return [];
+  const seen = new Map<string, CityCenterEntry>();
+  getCentersByCity(city).forEach((c) =>
+    seen.set(c.name.trim().toLowerCase(), { id: c.site_id, name: c.name })
+  );
+  try {
+    const { data } = await supabase
+      .from("test_centers")
+      .select("site_id,name,city")
+      .ilike("city", city.trim());
+    data?.forEach((row: any) => {
+      const key = String(row.name || "").trim().toLowerCase();
+      // Real SVP center IDs are small numbers — skip junk/test rows
+      if (key && row.site_id && row.site_id < 100000 && !seen.has(key)) {
+        seen.set(key, { id: row.site_id, name: row.name });
+      }
+    });
+  } catch {
+    /* DB lookup optional — static list already loaded */
+  }
+  return Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export function getCenterBySiteId(siteId: number): RealTestCenter | undefined {
