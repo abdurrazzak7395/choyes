@@ -224,3 +224,11 @@ agent_communication:
       No backend (FastAPI) changes. Edge functions unchanged.
       LIVE FULL BOOKING after strict changes: Create Hold #3844770 (session 1556481) ->
       Reservation confirmed #4260588 via UI buttons (unpaid draft, no money spent).
+  - agent: "main"
+    message: |
+      Session 3 final UX (user direction): Test Center dropdown = ONLY real centers
+      "Name (Site #ID)" (counts/city-all bucket/CityCentersPanel removed from BookingPage).
+      Selected center shows sessions available at it (undisclosed sessions bookable there,
+      site_id sent at booking); sessions resolved to OTHER centers excluded + note.
+      LIVE verified: Pabna #201 -> "Pabna TTC (Site #201) | Session 1", Site ID 201.
+      24/24 vitest, tsc clean.

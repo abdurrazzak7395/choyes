@@ -76,6 +76,14 @@ SVP (svp-international.pacc.sa) exam booking system for Bangladesh test centers,
 - Complete UI flow proven live AFTER strict-filter changes: deep link (occ 2279/cat 59, Rajshahi 2026-06-16) -> city-all bucket auto-selected (1 session) -> Create Hold -> **Hold #3844770 (numeric session 1556481)** -> Confirm Booking -> **Reservation confirmed #4260588** (English TLREE, site_id null, "ticket PDF will be available after payment"). Unpaid draft as always; no money spent.
 - Single-flight refresh held up through the whole run (no session revocation).
 
+## FINAL BOOKING FLOW UX (June 11 2026, session 3 cont.) — per user direction in Bengali
+- User rejected strict-empty UX. FINAL behavior on BookingPage:
+  - Occupation -> City -> Date -> Test Center dropdown shows ONLY verified real centers "Name (Site #ID)" (no "Sessions: N" labels, NO "city-all" bucket, CityCentersPanel REMOVED from BookingPage — still used on TestCenterAvailablePage).
+  - Selecting a center shows the sessions AVAILABLE at it: undisclosed-center sessions (SVP norm) are bookable at the selected center (site_id sent with booking); sessions resolved to a DIFFERENT center are excluded (+ note via data-testid="no-center-sessions-note" when all sessions belong elsewhere).
+  - Session option labeled with the selected center's name (Site #id).
+- sessionCenterIds resolution + single-flight refresh kept. centerAutoPickedRef/counts removed.
+- LIVE VERIFIED (refresh-token reuse, no new OTP needed): Rajshahi 16/06 -> clean dropdown (5 centers), Pabna #201 -> session "Pabna Technical Training Centre (Site #201) | Session 1", Site ID: 201. 24/24 vitest, tsc clean.
+
 ## Credentials
 - Access ADMIN: admin@example.com / 12345678 (see /app/memory/test_credentials.md)
 - SVP: mdrahadulislamsvp55445@yopmail.com / aRrazzak90# — OTP via email each login (yopmail inbox CAPTCHA-gated; user pastes OTP).

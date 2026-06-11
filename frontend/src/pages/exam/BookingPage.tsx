@@ -12,7 +12,6 @@ import {
 } from "@/lib/booking-utils";
 import { getRealTestCenterNameById, resolveCenterDisplayName, fetchCityCenters, type CityCenterEntry } from "@/lib/real-test-centers";
 import { ensureCenterDirectory, getDirectoryCenterName } from "@/lib/center-directory";
-import { CityCentersPanel } from "@/components/CityCentersPanel";
 
 
 
@@ -60,9 +59,6 @@ export default function BookingPage() {
   // Deep-link auto-fill guards: keep URL-provided city/date from being wiped by reset effects
   const urlPrefillOccupationRef = useRef(Boolean(searchParams.get("siteCity") || searchParams.get("examDate")));
   const urlPrefillCityRef = useRef(Boolean(searchParams.get("siteCity")));
-  // True while the Test Center selection was auto-picked (not chosen by the user) —
-  // lets us upgrade to a center with confirmed sessions once async resolution lands.
-  const centerAutoPickedRef = useRef(false);
 
   const selectedOccupation = useMemo(
     () => occupations.find((item) => String(item.id) === String(selectedOccupationId)) || null,
@@ -104,7 +100,8 @@ export default function BookingPage() {
     // centers of the selected city so the user can pick an actual test center name.
     const allPlaceholders = enriched.every((opt) => !opt.displayId);
     if (cityFilteredSessions.length && allPlaceholders && cityRealCenters.length) {
-      const realOpts = cityRealCenters.map((c) => ({
+      // Show ONLY the verified real test centers of the selected city (name + Site ID)
+      return cityRealCenters.map((c) => ({
         key: `real-${c.id}`,
         siteId: `real-${c.id}`,
         displayId: String(c.id),
@@ -112,19 +109,6 @@ export default function BookingPage() {
         name: c.name,
         city: selectedCity,
       }));
-      // Keep a booking path when SVP hides every session's center: an explicit,
-      // clearly-labeled option that shows only the undisclosed-center sessions.
-      return [
-        ...realOpts,
-        {
-          key: "city-all",
-          siteId: "city-all",
-          displayId: "",
-          displayIdType: "site" as const,
-          name: `Other ${selectedCity || "city"} sessions — center not disclosed by SVP`,
-          city: selectedCity,
-        },
-      ];
     }
     return enriched;
   }, [cityFilteredSessions, testCenterMap, cityRealCenters, selectedCity]);
@@ -135,21 +119,18 @@ export default function BookingPage() {
     if (own) return String(own);
     return sessionCenterIds.get(String(getSessionId(item))) || "";
   };
-  // STRICT mode: when a verified real center (real-{id}) is selected, only show
-  // sessions whose resolved test center id matches that center. Sessions whose
-  // center SVP hides (unresolvable pre-booking) are NOT shown.
+  // When a real center (real-{id}) is selected, show the sessions AVAILABLE at that
+  // center: SVP hides each session's center pre-booking, so undisclosed sessions are
+  // bookable at the selected center (its site_id is sent with the booking). Sessions
+  // confirmed to belong to a DIFFERENT center are excluded.
   const filteredSessions = useMemo(
     () => {
       if (!selectedCenterId) return cityFilteredSessions;
-      // Explicit "undisclosed center" bucket: only sessions with NO resolved center
-      if (selectedCenterId === "city-all") {
-        return cityFilteredSessions.filter((item) => !getResolvedSessionCenterId(item));
-      }
       if (isRealCenterSelection) {
         const realId = String(selectedCenterId).replace(/^real-/, "");
         return cityFilteredSessions.filter((item) => {
           const resolved = getResolvedSessionCenterId(item);
-          return resolved && String(resolved) === realId;
+          return !resolved || String(resolved) === realId;
         });
       }
       return cityFilteredSessions.filter((item) => getCenterKey(item) === String(selectedCenterId));
@@ -157,18 +138,6 @@ export default function BookingPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [cityFilteredSessions, selectedCenterId, isRealCenterSelection, sessionCenterIds]
   );
-  // Count of confirmed sessions per resolved center id (for real-center option labels).
-  // "__unresolved__" key counts sessions whose center SVP hides.
-  const realCenterSessionCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    cityFilteredSessions.forEach((item) => {
-      const id = getResolvedSessionCenterId(item);
-      const key = id ? String(id) : "__unresolved__";
-      counts.set(key, (counts.get(key) || 0) + 1);
-    });
-    return counts;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cityFilteredSessions, sessionCenterIds]);
   const selectedSession = useMemo(
     () => filteredSessions.find((item) => String(getSessionId(item)) === String(sessionId)) || null,
     [filteredSessions, sessionId]
@@ -440,39 +409,14 @@ export default function BookingPage() {
   useEffect(() => {
     if (!centerOptions.length) { setSelectedCenterId(""); return; }
     const hasSelected = centerOptions.some((item) => String(item.siteId) === String(selectedCenterId));
-    const countFor = (opt: any) => {
-      if (String(opt.siteId) === "city-all") return realCenterSessionCounts.get("__unresolved__") || 0;
-      return String(opt.siteId).startsWith("real-")
-        ? (realCenterSessionCounts.get(String(opt.displayId)) || 0)
-        : 1;
-    };
-    if (hasSelected) {
-      // If the current selection was auto-picked (not user-chosen), upgrade to a
-      // real center with confirmed sessions once async resolution lands.
-      if (centerAutoPickedRef.current) {
-        const current = centerOptions.find((item) => String(item.siteId) === String(selectedCenterId));
-        const isAllCurrent = String(selectedCenterId) === "city-all";
-        const bestReal = centerOptions.find((item) => String(item.siteId) !== "city-all" && countFor(item) > 0);
-        if (bestReal && (isAllCurrent || (current && countFor(current) === 0))) {
-          setSelectedCenterId(String(bestReal.siteId));
-        } else if (current && countFor(current) === 0) {
-          const any = centerOptions.find((item) => countFor(item) > 0);
-          if (any) setSelectedCenterId(String(any.siteId));
-        }
-      }
-      return;
-    }
+    if (hasSelected) return;
     // Deep-link prefill may carry a numeric site id while options use "real-{id}" keys
     if (selectedCenterId && centerOptions.some((item) => String(item.siteId) === `real-${selectedCenterId}`)) {
-      centerAutoPickedRef.current = false; // explicit user intent via URL
       setSelectedCenterId(`real-${selectedCenterId}`);
       return;
     }
-    // Prefer the first center with confirmed sessions (strict mode), else first option
-    const withSessions = centerOptions.find((item) => countFor(item) > 0);
-    centerAutoPickedRef.current = true;
-    setSelectedCenterId(String((withSessions || centerOptions[0]).siteId));
-  }, [centerOptions, selectedCenterId, realCenterSessionCounts]);
+    setSelectedCenterId(String(centerOptions[0].siteId));
+  }, [centerOptions, selectedCenterId]);
 
   useEffect(() => {
     if (!filteredSessions.length) { setSessionId(""); return; }
@@ -483,12 +427,6 @@ export default function BookingPage() {
   useEffect(() => {
     const selectedCenter = centerOptions.find((item) => String(item.siteId) === String(selectedCenterId));
     if (selectedCenter) {
-      // "city-all" carries no center identity — booking goes with site_id null
-      if (String(selectedCenter.siteId) === "city-all") {
-        setSiteId("");
-        setSiteCity(String(selectedCenter.city || ""));
-        return;
-      }
       // For verified real-center picks, use the numeric site id for the booking payload
       const numericSiteId = String(selectedCenter.siteId).startsWith("real-")
         ? String(selectedCenter.displayId || "")
@@ -903,25 +841,18 @@ export default function BookingPage() {
           ) : null}
           <div className="field-block">
             <span>Test Center *</span>
-            <select value={selectedCenterId} onChange={(e) => { centerAutoPickedRef.current = false; setSelectedCenterId(e.target.value); }} disabled={!centerOptions.length}>
+            <select value={selectedCenterId} onChange={(e) => setSelectedCenterId(e.target.value)} disabled={!centerOptions.length}>
               <option value="">{loadingSessions ? "Loading centers..." : "Select test center"}</option>
               {centerOptions.map((item) => {
-                const isAll = String(item.siteId) === "city-all";
-                const isReal = String(item.siteId).startsWith("real-");
                 const idLabel = item.displayId ? ` (${item.displayIdType === "site" ? "Site" : "Center"} #${item.displayId})` : "";
-                const count = isAll
-                  ? (realCenterSessionCounts.get("__unresolved__") || 0)
-                  : (isReal ? (realCenterSessionCounts.get(String(item.displayId)) || 0) : null);
-                const countLabel = count === null ? "" : (count > 0 ? ` | Sessions: ${count}` : " | No confirmed sessions");
                 return (
                   <option key={item.siteId} value={item.siteId}>
-                    {item.name}{idLabel}{countLabel}
+                    {item.name}{idLabel}
                   </option>
                 );
               })}
             </select>
           </div>
-          {selectedCity && availableDate ? <CityCentersPanel city={selectedCity} /> : null}
           <div className="field-block">
             <span>Exam Session *</span>
             <select value={sessionId} onChange={(e) => setSessionId(e.target.value)} disabled={!filteredSessions.length}>
@@ -963,10 +894,8 @@ export default function BookingPage() {
             </select>
             {!loadingSessions && selectedCenterId && cityFilteredSessions.length > 0 && filteredSessions.length === 0 ? (
               <small className="error-text" data-testid="no-center-sessions-note">
-                No confirmed exam sessions for this test center. SVP hides each session's test
-                center before booking, so only sessions verified for the selected center are shown
-                ({cityFilteredSessions.length} other session{cityFilteredSessions.length === 1 ? "" : "s"} in {selectedCity || "this city"} hidden).
-                Select another test center with "Sessions: N" in its name.
+                No exam sessions available for this test center on the selected date —
+                the sessions on this date belong to other test centers. Select another test center.
               </small>
             ) : null}
           </div>

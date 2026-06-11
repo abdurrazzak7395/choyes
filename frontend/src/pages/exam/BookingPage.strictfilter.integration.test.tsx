@@ -25,11 +25,11 @@ import BookingPage from "./BookingPage";
 
 // Two placeholder sessions (SVP hides center identity pre-booking).
 // Session A's detail resolves to test_center_id 218 (Narsingdi TTC, Dhaka).
-// Session B's detail stays unresolved.
+// Session B's detail stays undisclosed.
 const SESSION_A = 8800001;
 const SESSION_B = 8800002;
 
-describe("BookingPage strict mode: session row only shows the selected center's sessions", () => {
+describe("BookingPage: center select shows only real centers; session row shows sessions available at the selected center", () => {
   beforeEach(() => {
     apiMock.mockReset();
     apiMock.mockImplementation(async (path: string) => {
@@ -66,65 +66,108 @@ describe("BookingPage strict mode: session row only shows the selected center's 
       Array.from(sel.options).some((o) => o.value.startsWith("real-"))
     );
   }
+  function sessionValues(tc: HTMLSelectElement): string[] {
+    const selects = Array.from(document.querySelectorAll("select")) as HTMLSelectElement[];
+    const ss = selects[selects.indexOf(tc) + 1];
+    return ss ? Array.from(ss.options).map((o) => o.value).filter(Boolean) : [];
+  }
 
-  it("auto-selects the center with confirmed sessions and lists ONLY its sessions", async () => {
+  it("center dropdown lists ONLY real centers with name + Site ID (no extra labels, no city-all)", async () => {
     render(
       <MemoryRouter initialEntries={[`/exam/booking?occupationId=7&categoryId=99&siteCity=Dhaka&examDate=2026-07-20`]}>
         <BookingPage />
       </MemoryRouter>
     );
 
-    // Real-center dropdown appears with session counts; Narsingdi (#218) auto-selected
     await waitFor(() => {
       const tc = findCenterSelect();
       expect(tc, "expected real-center dropdown").toBeTruthy();
-      expect(tc!.value).toBe("real-218");
-      const selectedOpt = Array.from(tc!.options).find((o) => o.value === "real-218")!;
-      expect(selectedOpt.text).toContain("Narsingdi");
-      expect(selectedOpt.text).toContain("Sessions: 1");
-    }, { timeout: 8000, interval: 50 });
-
-    // Session dropdown shows ONLY session A (resolved to #218), not session B
-    await waitFor(() => {
-      const selects = Array.from(document.querySelectorAll("select")) as HTMLSelectElement[];
-      const sess = selects.find((sel) =>
-        Array.from(sel.options).some((o) => o.value === String(SESSION_A))
-      );
-      expect(sess, "expected session select containing session A").toBeTruthy();
-      const values = Array.from(sess!.options).map((o) => o.value).filter(Boolean);
-      expect(values).toContain(String(SESSION_A));
-      expect(values).not.toContain(String(SESSION_B));
+      const opts = Array.from(tc!.options).filter((o) => o.value);
+      expect(opts.length).toBeGreaterThan(0);
+      // Only real-{id} options, no city-all bucket
+      expect(opts.every((o) => o.value.startsWith("real-"))).toBe(true);
+      // Clean labels: "Name (Site #ID)" only — no Sessions counts
+      expect(opts.every((o) => /\(Site #\d+\)$/.test(o.text.trim()))).toBe(true);
+      expect(opts.some((o) => o.text.includes("Sessions:") || o.text.includes("No confirmed sessions"))).toBe(false);
     }, { timeout: 8000, interval: 50 });
   }, 15000);
 
-  it("shows NO sessions + a note when the selected center has no confirmed sessions", async () => {
+  it("selected center shows its own + undisclosed sessions, but NOT sessions of other centers", async () => {
     render(
       <MemoryRouter initialEntries={[`/exam/booking?occupationId=7&categoryId=99&siteCity=Dhaka&examDate=2026-07-20`]}>
         <BookingPage />
       </MemoryRouter>
     );
 
+    // Pick Narsingdi #218 — session A (its own) + session B (undisclosed) both available
+    await waitFor(() => { expect(findCenterSelect()).toBeTruthy(); }, { timeout: 8000, interval: 50 });
+    fireEvent.change(findCenterSelect()!, { target: { value: "real-218" } });
     await waitFor(() => {
-      const tc = findCenterSelect();
-      expect(tc?.value).toBe("real-218");
+      const tc = findCenterSelect()!;
+      expect(tc.value).toBe("real-218");
+      const values = sessionValues(tc);
+      expect(values).toContain(String(SESSION_A));
+      expect(values).toContain(String(SESSION_B));
     }, { timeout: 8000, interval: 50 });
 
-    // Switch to a different real center (Kishoreganj #220 — no confirmed sessions)
-    const tc = findCenterSelect()!;
-    fireEvent.change(tc, { target: { value: "real-220" } });
+    // Pick Kishoreganj #220 — session A belongs to #218 so it must disappear;
+    // undisclosed session B stays available at the selected center.
+    fireEvent.change(findCenterSelect()!, { target: { value: "real-220" } });
+    await waitFor(() => {
+      const tc = findCenterSelect()!;
+      expect(tc.value).toBe("real-220");
+      const values = sessionValues(tc);
+      expect(values).not.toContain(String(SESSION_A));
+      expect(values).toContain(String(SESSION_B));
+    }, { timeout: 8000, interval: 50 });
+  }, 15000);
+});
+
+describe("BookingPage: note shown when every session belongs to other centers", () => {
+  beforeEach(() => {
+    apiMock.mockReset();
+    apiMock.mockImplementation(async (path: string) => {
+      if (path.startsWith("/occupations")) return new Promise(() => {});
+      if (path.startsWith("/user-balance")) return { reservation_credits: 0, free_certificates_total: 0 };
+      if (path.startsWith("/available-dates")) return { data: [{ date: "2026-07-20", city: "Dhaka" }] };
+      if (path.startsWith("/exam-sessions?")) {
+        return { exam_sessions: [{ id: SESSION_A, available_seats: 4, site_city: "Dhaka" }] };
+      }
+      if (path.startsWith(`/exam-sessions/${SESSION_A}`)) {
+        return {
+          exam_session: {
+            id: SESSION_A,
+            test_center: { test_center_id: 218, name: "Narsingdi Technical Training Center" },
+          },
+        };
+      }
+      if (path.startsWith("/test-centers/")) return { test_center: {} };
+      return { data: [] };
+    });
+  });
+
+  it("shows empty session row + note for a center whose date has only other-center sessions", async () => {
+    render(
+      <MemoryRouter initialEntries={[`/exam/booking?occupationId=7&categoryId=99&siteCity=Dhaka&examDate=2026-07-20`]}>
+        <BookingPage />
+      </MemoryRouter>
+    );
+
+    const find = () => {
+      const selects = Array.from(document.querySelectorAll("select")) as HTMLSelectElement[];
+      return selects.find((sel) => Array.from(sel.options).some((o) => o.value === "real-220"));
+    };
+    await waitFor(() => { expect(find()).toBeTruthy(); }, { timeout: 8000, interval: 50 });
+    fireEvent.change(find()!, { target: { value: "real-220" } });
 
     await waitFor(() => {
-      const note = document.querySelector('[data-testid="no-center-sessions-note"]');
-      expect(note, "expected hidden-sessions note").toBeTruthy();
-      // No session option from other centers leaks into the dropdown
       const selects = Array.from(document.querySelectorAll("select")) as HTMLSelectElement[];
-      const leaked = selects.some((sel) =>
-        Array.from(sel.options).some((o) => o.value === String(SESSION_A) || o.value === String(SESSION_B))
-      );
-      expect(leaked).toBe(false);
-      // The "no sessions" center option is labeled accordingly
-      const opt = Array.from(findCenterSelect()!.options).find((o) => o.value === "real-220")!;
-      expect(opt.text).toContain("No confirmed sessions");
+      const tc = find()!;
+      const ss = selects[selects.indexOf(tc) + 1];
+      const values = Array.from(ss.options).map((o) => o.value).filter(Boolean);
+      expect(values).not.toContain(String(SESSION_A));
+      const note = document.querySelector('[data-testid="no-center-sessions-note"]');
+      expect(note, "expected other-center note").toBeTruthy();
     }, { timeout: 8000, interval: 50 });
   }, 15000);
 });
