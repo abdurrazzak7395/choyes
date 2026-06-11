@@ -222,3 +222,5 @@ agent_communication:
       identity pre-booking); explicit "Other {city} sessions" bucket keeps booking possible.
       Also fixed token-refresh race that revoked SVP sessions. 23/23 vitest, tsc clean.
       No backend (FastAPI) changes. Edge functions unchanged.
+      LIVE FULL BOOKING after strict changes: Create Hold #3844770 (session 1556481) ->
+      Reservation confirmed #4260588 via UI buttons (unpaid draft, no money spent).

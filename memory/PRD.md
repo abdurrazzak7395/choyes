@@ -72,6 +72,10 @@ SVP (svp-international.pacc.sa) exam booking system for Bangladesh test centers,
 - Live available dates (June 2026): only Rajshahi/Khulna/Barishal, 18 entries, cat 59.
 - NOTE: playwright token injection must avoid hand-copied JWTs (one typo caused refresh storm + session revocation during testing). Trick used: write tokens to frontend/public/svp_tokens.json (same-origin fetch), DELETE after.
 
+## LIVE FULL BOOKING RE-VERIFIED WITH STRICT MODE (June 11 2026, session 3)
+- Complete UI flow proven live AFTER strict-filter changes: deep link (occ 2279/cat 59, Rajshahi 2026-06-16) -> city-all bucket auto-selected (1 session) -> Create Hold -> **Hold #3844770 (numeric session 1556481)** -> Confirm Booking -> **Reservation confirmed #4260588** (English TLREE, site_id null, "ticket PDF will be available after payment"). Unpaid draft as always; no money spent.
+- Single-flight refresh held up through the whole run (no session revocation).
+
 ## Credentials
 - Access ADMIN: admin@example.com / 12345678 (see /app/memory/test_credentials.md)
 - SVP: mdrahadulislamsvp55445@yopmail.com / aRrazzak90# — OTP via email each login (yopmail inbox CAPTCHA-gated; user pastes OTP).
