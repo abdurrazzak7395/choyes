@@ -11,7 +11,8 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const JWT_SECRET_RAW = Deno.env.get("JWT_ACCESS_SECRET") || "access-backend-secret-key-change-me";
+const JWT_SECRET_RAW = Deno.env.get("JWT_ACCESS_SECRET");
+if (!JWT_SECRET_RAW) throw new Error("JWT_ACCESS_SECRET is required");
 
 // Create crypto key for JWT
 async function getJwtKey() {
@@ -194,26 +195,29 @@ serve(async (req) => {
       });
     }
 
-    // POST /bootstrap - create default admin
+    // POST /bootstrap - create the FIRST admin only (locked once any admin exists)
     if (path === "/bootstrap" && req.method === "POST") {
-      const { name, email, password } = await req.json();
-      const adminEmail = (email || "admin@example.com").toLowerCase();
-      const adminName = name || "Super Admin";
-      const adminPassword = password || "12345678";
-
-      const { data: existing } = await supabase
+      const { count: adminCount } = await supabase
         .from("accounts")
-        .select("id")
-        .eq("email", adminEmail)
-        .single();
+        .select("id", { count: "exact", head: true })
+        .eq("role", "ADMIN");
 
-      if (existing) {
-        return new Response(JSON.stringify({ message: "Admin already exists" }), {
-          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      if ((adminCount ?? 0) > 0) {
+        return new Response(JSON.stringify({ message: "Forbidden" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      const hash = bcrypt.hashSync(adminPassword);
+      const { name, email, password } = await req.json();
+      if (!email || !password || String(password).length < 8) {
+        return new Response(JSON.stringify({ message: "email and a password of at least 8 characters are required" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const adminEmail = String(email).toLowerCase();
+      const adminName = name || "Super Admin";
+
+      const hash = bcrypt.hashSync(password);
       const { data: admin, error } = await supabase
         .from("accounts")
         .insert({
