@@ -25,6 +25,8 @@ export default function BookingPage() {
   // sessionId -> resolved test center id (from session detail fetches); used to
   // strictly match sessions to the selected test center.
   const [sessionCenterIds, setSessionCenterIds] = useState<Map<string, string>>(new Map());
+  // When true, session->center resolution is in flight (each session fetched in parallel)
+  const [resolvingCenters, setResolvingCenters] = useState(false);
   const [cityRealCenters, setCityRealCenters] = useState<CityCenterEntry[]>([]);
   const [selectedOccupationId, setSelectedOccupationId] = useState("");
   const [selectedCity, setSelectedCity] = useState("");
@@ -119,10 +121,10 @@ export default function BookingPage() {
     if (own) return String(own);
     return sessionCenterIds.get(String(getSessionId(item))) || "";
   };
-  // When a real center (real-{id}) is selected, show the sessions AVAILABLE at that
-  // center: SVP hides each session's center pre-booking, so undisclosed sessions are
-  // bookable at the selected center (its site_id is sent with the booking). Sessions
-  // confirmed to belong to a DIFFERENT center are excluded.
+  // STRICT 1:1 filter: when a real center is selected, ONLY show sessions whose
+  // resolved test_center_id (from /exam-sessions/:id detail) equals the selected
+  // center id. Sessions whose center is still being resolved are excluded.
+  // Sessions whose center is permanently undisclosed by SVP are also excluded.
   const filteredSessions = useMemo(
     () => {
       if (!selectedCenterId) return cityFilteredSessions;
@@ -130,7 +132,7 @@ export default function BookingPage() {
         const realId = String(selectedCenterId).replace(/^real-/, "");
         return cityFilteredSessions.filter((item) => {
           const resolved = getResolvedSessionCenterId(item);
-          return !resolved || String(resolved) === realId;
+          return resolved && String(resolved) === realId;
         });
       }
       return cityFilteredSessions.filter((item) => getCenterKey(item) === String(selectedCenterId));
@@ -302,11 +304,14 @@ export default function BookingPage() {
     return () => { active = false; };
   }, [selectedCity, availableDate, categoryId]);
 
-  // Resolve real test center names: prefer SVP exam_session detail (test_center.name),
-  // fall back to local DB by site_id. Key map by the same key buildCenterOptions uses.
+  // Resolve real test center names AND ids: prefer SVP exam_session detail
+  // (test_center.name + test_center_id), fall back to local DB by site_id.
+  // STRICT mode requires per-session test_center_id, so we fetch detail for
+  // every session that doesn't already carry it.
   useEffect(() => {
-    if (!sessions.length) return;
+    if (!sessions.length) { setResolvingCenters(false); return; }
     let active = true;
+    setResolvingCenters(true);
     (async () => {
       const newMap = new Map(testCenterMap);
       let changed = false;
@@ -314,7 +319,7 @@ export default function BookingPage() {
       // 1. For sessions missing test_center.name, fetch /test-centers/:id directly
       //    (SVP: /api/v1/individual_labor_space/test_centers/:id). Fall back to
       //    /exam-sessions/:id detail if the test_centers endpoint doesn't return a name.
-      const needDetail = sessions.filter((s: any) => {
+      const needNameDetail = sessions.filter((s: any) => {
         const key = String(getCenterKey(s));
         if (!key || newMap.has(key)) return false;
         return !s?.test_center?.name && !s?.test_center_name;
@@ -322,7 +327,7 @@ export default function BookingPage() {
 
       // 1a. Resolve by test_center_id via /test-centers/:id
       const tcIds = Array.from(new Set(
-        needDetail
+        needNameDetail
           .map((s: any) => getSessionTestCenterId(s))
           .filter(Boolean)
       ));
@@ -340,13 +345,19 @@ export default function BookingPage() {
         } catch {}
       }));
 
-      // 1b. Remaining: fall back to /exam-sessions/:id detail (embeds test_center).
-      //     Also capture the resolved test center id per session (sessionCenterIds)
-      //     so strict center -> session filtering can match.
+      // 1b. STRICT: fetch /exam-sessions/:id detail for sessions where either
+      //     - the test_center NAME is still missing, OR
+      //     - the test_center_id is not known (needed for strict 1:1 filter).
       const newIdMap = new Map(sessionCenterIds);
       let idChanged = false;
-      const stillMissing = needDetail.filter((s: any) => !newMap.has(String(getCenterKey(s))));
-      const uniqueIds = Array.from(new Set(stillMissing.map((s: any) => String(getSessionId(s))).filter(Boolean)));
+      const needIdResolve = sessions.filter((s: any) => {
+        const own = getSessionTestCenterId(s);
+        if (!own && !newIdMap.has(String(getSessionId(s)))) return true;
+        // also fetch for sessions that still don't have a resolved name
+        const key = String(getCenterKey(s));
+        return !!key && !newMap.has(key) && !s?.test_center?.name && !s?.test_center_name;
+      });
+      const uniqueIds = Array.from(new Set(needIdResolve.map((s: any) => String(getSessionId(s))).filter(Boolean)));
       await Promise.all(uniqueIds.map(async (id) => {
         try {
           const detail: any = await api(`/exam-sessions/${encodeURIComponent(id)}?locale=en`);
@@ -366,7 +377,7 @@ export default function BookingPage() {
       }));
 
       // 1c. Known Bangladesh SVP test centers (static direct API fallback).
-      stillMissing.forEach((s: any) => {
+      needNameDetail.forEach((s: any) => {
         const key = String(getCenterKey(s));
         if (!key || newMap.has(key)) return;
         const name = getRealTestCenterNameById(getSessionTestCenterId(s)) || getRealTestCenterNameById(getSessionSiteId(s));
@@ -394,6 +405,7 @@ export default function BookingPage() {
 
       if (active && changed) setTestCenterMap(newMap);
       if (active && idChanged) setSessionCenterIds(newIdMap);
+      if (active) setResolvingCenters(false);
     })();
     return () => { active = false; };
   }, [sessions]);
@@ -856,23 +868,27 @@ export default function BookingPage() {
           <div className="field-block">
             <span>Exam Session *</span>
             <select value={sessionId} onChange={(e) => setSessionId(e.target.value)} disabled={!filteredSessions.length}>
-              <option value="">{loadingSessions ? "Loading sessions..." : "Select session"}</option>
+              <option value="">{loadingSessions ? "Loading sessions..." : (resolvingCenters && cityFilteredSessions.length ? "Resolving session centers..." : "Select session")}</option>
               {filteredSessions.map((item, idx) => {
                 const sid = getSessionSiteId(item);
-                const idLabel = sid ? ` (Site #${sid})` : (isRealCenterSelection && siteId ? ` (Site #${siteId})` : "");
                 const rawSessionId = String(getSessionId(item));
                 const sessionLabel = rawSessionId.includes("--") ? `Session ${idx + 1}` : `Session #${rawSessionId}`;
-                const selectedRealCenter = isRealCenterSelection
-                  ? centerOptions.find((o) => String(o.siteId) === String(selectedCenterId))
-                  : null;
-                const realName = selectedRealCenter?.name || resolveCenterDisplayName(
+                // Resolve the session's OWN center (not the selected center) so the
+                // label reflects ground truth — strict 1:1.
+                const resolvedSessionCenterId =
+                  getSessionTestCenterId(item) ||
+                  sessionCenterIds.get(String(getSessionId(item))) ||
+                  sid;
+                const realName = resolveCenterDisplayName(
                   testCenterMap.get(String(sid)) ||
                     getDirectoryCenterName(sid, getSessionTestCenterId(item)) ||
                     getSessionCenterName(item),
                   getSessionSiteCity(item),
+                  resolvedSessionCenterId,
                   getSessionTestCenterId(item),
                   sid
                 );
+                const idLabel = resolvedSessionCenterId ? ` (Site #${resolvedSessionCenterId})` : (sid ? ` (Site #${sid})` : "");
                 const seats = item?.available_seats ?? item?.seats_available ?? item?.remaining_seats ?? null;
                 const rawTime =
                   item?.start_time || item?.start_at_time || item?.exam_time ||
@@ -892,10 +908,10 @@ export default function BookingPage() {
                 );
               })}
             </select>
-            {!loadingSessions && selectedCenterId && cityFilteredSessions.length > 0 && filteredSessions.length === 0 ? (
+            {!loadingSessions && !resolvingCenters && selectedCenterId && cityFilteredSessions.length > 0 && filteredSessions.length === 0 ? (
               <small className="error-text" data-testid="no-center-sessions-note">
-                No exam sessions available for this test center on the selected date —
-                the sessions on this date belong to other test centers. Select another test center.
+                No exam sessions confirmed for this test center on the selected date —
+                every session on this date belongs to other test centers. Select another test center.
               </small>
             ) : null}
           </div>

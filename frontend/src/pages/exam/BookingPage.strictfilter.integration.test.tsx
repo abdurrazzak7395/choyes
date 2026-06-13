@@ -29,7 +29,7 @@ import BookingPage from "./BookingPage";
 const SESSION_A = 8800001;
 const SESSION_B = 8800002;
 
-describe("BookingPage: center select shows only real centers; session row shows sessions available at the selected center", () => {
+describe("BookingPage: STRICT 1:1 — center selection shows ONLY sessions whose resolved test_center_id matches; undisclosed sessions hidden", () => {
   beforeEach(() => {
     apiMock.mockReset();
     apiMock.mockImplementation(async (path: string) => {
@@ -92,14 +92,15 @@ describe("BookingPage: center select shows only real centers; session row shows 
     }, { timeout: 8000, interval: 50 });
   }, 15000);
 
-  it("selected center shows its own + undisclosed sessions, but NOT sessions of other centers", async () => {
+  it("STRICT: selected center shows ONLY its own confirmed session; undisclosed sessions are hidden", async () => {
     render(
       <MemoryRouter initialEntries={[`/exam/booking?occupationId=7&categoryId=99&siteCity=Dhaka&examDate=2026-07-20`]}>
         <BookingPage />
       </MemoryRouter>
     );
 
-    // Pick Narsingdi #218 — session A (its own) + session B (undisclosed) both available
+    // Pick Narsingdi #218 — only session A (confirmed #218) must appear.
+    // Session B is undisclosed → hidden in strict mode.
     await waitFor(() => { expect(findCenterSelect()).toBeTruthy(); }, { timeout: 8000, interval: 50 });
     fireEvent.change(findCenterSelect()!, { target: { value: "real-218" } });
     await waitFor(() => {
@@ -107,18 +108,20 @@ describe("BookingPage: center select shows only real centers; session row shows 
       expect(tc.value).toBe("real-218");
       const values = sessionValues(tc);
       expect(values).toContain(String(SESSION_A));
-      expect(values).toContain(String(SESSION_B));
+      expect(values).not.toContain(String(SESSION_B));
     }, { timeout: 8000, interval: 50 });
 
-    // Pick Kishoreganj #220 — session A belongs to #218 so it must disappear;
-    // undisclosed session B stays available at the selected center.
+    // Pick Kishoreganj #220 — session A belongs to #218 (hidden);
+    // session B is undisclosed → also hidden in strict mode.
     fireEvent.change(findCenterSelect()!, { target: { value: "real-220" } });
     await waitFor(() => {
       const tc = findCenterSelect()!;
       expect(tc.value).toBe("real-220");
       const values = sessionValues(tc);
       expect(values).not.toContain(String(SESSION_A));
-      expect(values).toContain(String(SESSION_B));
+      expect(values).not.toContain(String(SESSION_B));
+      const note = document.querySelector('[data-testid="no-center-sessions-note"]');
+      expect(note, "expected other-center note when no sessions match").toBeTruthy();
     }, { timeout: 8000, interval: 50 });
   }, 15000);
 });

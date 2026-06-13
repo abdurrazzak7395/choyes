@@ -84,6 +84,18 @@ SVP (svp-international.pacc.sa) exam booking system for Bangladesh test centers,
 - sessionCenterIds resolution + single-flight refresh kept. centerAutoPickedRef/counts removed.
 - LIVE VERIFIED (refresh-token reuse, no new OTP needed): Rajshahi 16/06 -> clean dropdown (5 centers), Pabna #201 -> session "Pabna Technical Training Centre (Site #201) | Session 1", Site ID: 201. 24/24 vitest, tsc clean.
 
+## STRICT 1:1 CENTER → SESSION FILTER (Feb 13 2026, session 4) — per user Bengali request
+- User reported: selecting "Pabna Technical Training Centre (Site #201)" was showing 6 sessions all labeled "Pabna" — but those sessions actually belonged to other centers (SVP hides identity pre-booking, previous fork included undisclosed sessions as a fallback).
+- User chose option (a) STRICT: fetch every session's `/exam-sessions/:id` detail in parallel, then show ONLY sessions whose resolved `test_center_id` strictly equals the selected center id. Undisclosed/unresolved sessions are HIDDEN, not silently attributed to the picked center.
+- BookingPage.tsx changes:
+  - Added `resolvingCenters` loading flag; dropdown shows "Resolving session centers..." placeholder while detail fetches are in flight.
+  - `filteredSessions` for real-{id} selection now: `resolved && String(resolved) === realId` (was `!resolved || ...`).
+  - Center-resolution effect now also fetches detail for sessions missing test_center_id (not only missing name), capturing them into `sessionCenterIds`.
+  - Session option label uses the SESSION'S OWN resolved center (sessionCenterIds + REAL_TEST_CENTERS lookup), NOT the user-selected center's name. Site # shown is the resolved id, fallback to session site_id.
+  - Empty-state note text reworded: "No exam sessions confirmed for this test center on the selected date — every session on this date belongs to other test centers."
+- BookingPage.strictfilter.integration.test.tsx updated to assert: undisclosed sessions are HIDDEN under strict mode; note appears when no strict matches.
+- 24/24 vitest pass. Live verification with real SVP login pending user OTP (frontend rebuild & supervisor not needed — hot reload).
+
 ## Credentials
 - Access ADMIN: admin@example.com / 12345678 (see /app/memory/test_credentials.md)
 - SVP: mdrahadulislamsvp55445@yopmail.com / aRrazzak90# — OTP via email each login (yopmail inbox CAPTCHA-gated; user pastes OTP).
