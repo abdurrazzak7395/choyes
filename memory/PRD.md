@@ -33,9 +33,11 @@ User language: Bengali (technical terms in English).
 - 2026-02 — ReservationsPage `getCenterName` + `getSiteId` updated to read new SVP fields (`test_center.test_center_name`, `test_center.test_center_id`, `test_center.test_center_city`).
 - 2026-02 — Reschedule navigation forwards `siteCity` from new SVP `test_center_city`.
 - 2026-02 — New test file `ReservationsPage.helpers.test.ts` (7 tests covering new + legacy shapes).
+- 2026-02 — BookingPage `createHold` now sends ONLY the selected `exam_session_id` (was sending every session in the city). Regression test: `BookingPage.create-hold.test.ts`.
+- 2026-02 — **BookingPage new-booking POST now mirrors the official SVP frontend confirm step**: `site_id: null`, `site_city: null`, `hold_id: null`. Previously stale UI fallbacks (e.g. `site_id: 1` for Dhaka) were forwarded and SVP used them as an override, causing the reservation to land at a DIFFERENT centre in the same city. Captured via network trace of `svp-international.pacc.sa`. Regression test: `BookingPage.reservation-payload.test.ts`.
 
 ## Current Test Status
-- 50/50 Vitest tests passing across 9 suites.
+- 56/56 Vitest tests passing across 11 suites.
 
 ## Backlog
 - P2 — Obtain fresh SVP API Bearer token for live e2e verification (current Postman token returns 401).
