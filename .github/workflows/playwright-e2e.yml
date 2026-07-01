@@ -2,7 +2,7 @@ name: Playwright E2E Tests
 
 on:
   push:
-    branches: [ add/test-center-guards ]
+    branches: [ add/test-center-guards, main ]
   pull_request:
     branches: [ main ]
 
