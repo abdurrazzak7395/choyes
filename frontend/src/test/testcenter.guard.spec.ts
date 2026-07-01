@@ -3,6 +3,16 @@ import { test, expect } from '@playwright/test';
 // Replace BASE with your dev server address if different
 const BASE = process.env.E2E_BASE_URL || 'http://localhost:3000';
 
+async function seedAuth(page) {
+  // Set a non-expired dummy JWT in localStorage so the app treats the session as authenticated
+  await page.addInitScript(() => {
+    const header = btoa(JSON.stringify({ alg: 'none', typ: 'JWT' }));
+    const payload = btoa(JSON.stringify({ login: 'e2e-user', exp: Math.floor(Date.now() / 1000) + 60 * 60 }));
+    const token = `${header}.${payload}.`;
+    localStorage.setItem('accessToken', token);
+  });
+}
+
 // Test: when server returns access: false, user should be redirected to '/'
 test('redirects to root when user has no access to the test center', async ({ page }) => {
   await page.route('**/test_centers/*/validate_access', (route) => {
@@ -12,6 +22,9 @@ test('redirects to root when user has no access to the test center', async ({ pa
       body: JSON.stringify({ access: false })
     });
   });
+
+  // Seed auth before navigation
+  await seedAuth(page);
 
   // Navigate directly to a protected route
   await page.goto(`${BASE}/test-center/centers/123`);
@@ -29,6 +42,9 @@ test('allows access when server validates test center access', async ({ page }) 
       body: JSON.stringify({ access: true, role: 'owner' })
     });
   });
+
+  // Seed auth before navigation
+  await seedAuth(page);
 
   await page.goto(`${BASE}/test-center/centers/123`);
 
