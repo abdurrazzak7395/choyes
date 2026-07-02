@@ -1,4 +1,4 @@
-import Gateway from '@/api/index';
+import Gateway from './index.js';
 
 class TestCenterApi {
   validateAccess(testCenterId) {

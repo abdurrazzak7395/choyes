@@ -5,13 +5,52 @@ import type { Database } from './types';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-// Import the supabase client like this:
-// import { supabase } from "@/integrations/supabase/client";
+const createFallbackClient = (): any => {
+  const fallbackResult = Promise.resolve({ data: null, error: { message: 'Supabase not configured' } });
+  const queryProxy: any = new Proxy(
+    {},
+    {
+      get: () => () => queryProxy,
+      apply: () => fallbackResult,
+    }
+  );
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: {
-    storage: localStorage,
-    persistSession: true,
-    autoRefreshToken: true,
-  }
-});
+  const client = {
+    from: () => queryProxy,
+    rpc: () => fallbackResult,
+    auth: {
+      signIn: async () => ({ data: null, error: { message: 'Supabase not configured' } }),
+      signUp: async () => ({ data: null, error: { message: 'Supabase not configured' } }),
+      signOut: async () => ({ error: { message: 'Supabase not configured' } }),
+    },
+    storage: {
+      from: () => queryProxy,
+    },
+  };
+
+  return new Proxy(client, {
+    get(target, prop) {
+      if (prop in target) {
+        return (target as any)[prop];
+      }
+      return () => fallbackResult;
+    },
+  });
+};
+
+const supabase =
+  SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY
+    ? createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+        auth: {
+          storage: localStorage,
+          persistSession: true,
+          autoRefreshToken: true,
+        },
+      })
+    : createFallbackClient();
+
+if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+  console.warn('Supabase is not configured. The supabase client is disabled until VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY are provided.');
+}
+
+export { supabase };

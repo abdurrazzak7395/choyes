@@ -38,7 +38,11 @@ Create `frontend/.env.local`:
 ```env
 VITE_API_URL=http://localhost:8000
 VITE_AUTH_API_URL=http://localhost:8000
+VITE_SUPABASE_URL=https://your-supabase-project.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
 ```
+
+If these Supabase variables are not set, the frontend will start without a Supabase client, but Supabase-backed features will remain disabled.
 
 ### Backend (.env)
 
