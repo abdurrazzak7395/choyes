@@ -1,6 +1,6 @@
-import store from '@/store';
-import TestCenterApi from '@/api/testCenter.api';
-import { TestCenterDefaultPathName } from '@/app/testCenter/routes/utils';
+import store from '../../../../store/index.js';
+import TestCenterApi from '../../../../api/testCenter.api.js';
+import { TestCenterDefaultPathName } from '../utils.js';
 
 // Options:
 //  - fromParam: read test center id from to.params[fromParam]
